@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   LayoutGrid,
   Users,
@@ -7,35 +7,13 @@ import {
   ShieldCheck,
   FileBarChart,
   Settings,
-  Download,
   Search,
-  Filter,
-  BellRing,
-  TrendingUp,
-  Building2,
-  CalendarClock,
   Briefcase,
   Layers,
   BarChart2,
   ListOrdered,
-  X,
 } from "lucide-react";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  CartesianGrid,
-  Legend,
-} from "recharts";
-import { CHART_COLORS, Input, TOKENS } from "../components/primitives";
+import { Input, TOKENS } from "../components/primitives";
 import {
   AgentRankingSplitPage,
   AgentLastTransactionPage,
@@ -52,7 +30,6 @@ import {
   TeamsPage,
   AgentRankingPage,
 } from "../components";
-import { downloadCSV } from "../utils";
 
 // ---- Tabs ----
 const TABS = [
