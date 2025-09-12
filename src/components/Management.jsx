@@ -20,18 +20,28 @@ import {
   CardHeader,
   CHART_COLORS,
   Input,
-  MANAGEMENT_DEVELOPERS,
-  MANAGEMENT_LEAD_SOURCE,
-  MANAGEMENT_PROPERTY_TYPES,
-  MANAGEMENT_TOTAL_DEALS,
   Select,
   Table,
   TOKENS,
 } from "./primitives";
 import KPI from "./KPI";
+import { useManagementData } from "../hooks/useManagementData";
+
+// Helper to format numbers into currency
+const formatCurrency = (value) => {
+  return new Intl.NumberFormat("en-AE", {
+    style: "currency",
+    currency: "AED",
+  }).format(value);
+};
 
 function ManagementPage() {
-  const [year, setYear] = useState("2025");
+  const [year, setYear] = useState(new Date().getFullYear().toString());
+  const [selectedDeveloper, setSelectedDeveloper] = useState("All");
+
+  // Fetch data using our custom hook
+  const { data, isLoading, isError, error } = useManagementData(year);
+
   const totalDealsHeaders = [
     "Month",
     "Deals Won",
@@ -48,6 +58,27 @@ function ManagementPage() {
   ];
 
   const MGMT_CHART_COLORS = ["#003366", "#3b82f6", "#60a5fa"];
+
+  // Handle loading and error states
+  if (isLoading) {
+    return <div className="text-center p-8">Loading dashboard data...</div>;
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center p-8 text-red-500">
+        Error loading data: {error.message}
+      </div>
+    );
+  }
+
+  // Filter data based on selected developer
+  const filteredDevelopersData = data.developersData.filter(
+    (dev) => selectedDeveloper === "All" || dev.developer === selectedDeveloper
+  );
+
+  // Note: For a fully filtered dashboard, you would re-calculate all metrics
+  // based on the filtered deals. For simplicity here, we are just filtering the developer table/chart.
 
   return (
     <div className="space-y-6">
@@ -74,16 +105,24 @@ function ManagementPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPI label="Total Deals" value="105" valueStyle="text-3xl" />
-        <KPI label="Deals Won" value="7" valueStyle="text-3xl" />
+        <KPI
+          label="Total Deals"
+          value={data.kpis.totalDeals}
+          valueStyle="text-3xl"
+        />
+        <KPI
+          label="Deals Won"
+          value={data.kpis.dealsWon}
+          valueStyle="text-3xl"
+        />
         <KPI
           label="Gross Commission"
-          value="32,277,229.00 AED"
+          value={formatCurrency(data.kpis.grossCommission)}
           valueStyle="text-xl"
         />
         <KPI
           label="Net Commission"
-          value="20,219,294.00 AED"
+          value={formatCurrency(data.kpis.netCommission)}
           valueStyle="text-xl"
         />
       </div>
@@ -93,10 +132,19 @@ function ManagementPage() {
           title="Total Deals"
           actions={
             <div className="flex items-center gap-2">
-              <Select className="w-48">
-                <option>Developer: All (Developers)</option>
+              {/* This dropdown is now powered by real data */}
+              <Select
+                className="w-48"
+                value={selectedDeveloper}
+                onChange={(e) => setSelectedDeveloper(e.target.value)}
+              >
+                <option value="All">All Developers</option>
+                {data.allDevelopers.map((dev) => (
+                  <option key={dev} value={dev}>
+                    {dev}
+                  </option>
+                ))}
               </Select>
-              <Button variant="ghost">Select Developers</Button>
             </div>
           }
         />
@@ -105,13 +153,14 @@ function ManagementPage() {
             <div className="lg:col-span-2">
               <Table
                 headers={totalDealsHeaders}
-                data={MANAGEMENT_TOTAL_DEALS.map((d) => ({
-                  ...d,
-                  propertyPrice: d.propertyPrice.toLocaleString(),
-                  grossCommission: d.grossCommission.toLocaleString(),
-                  netCommission: d.netCommission.toLocaleString(),
-                  paymentReceived: d.paymentReceived.toLocaleString(),
-                  amountReceivable: d.amountReceivable.toLocaleString(),
+                data={data.totalDealsByMonth.map((d) => ({
+                  month: d.month,
+                  dealsWon: d.dealsWon,
+                  propertyPrice: formatCurrency(d.propertyPrice),
+                  grossCommission: formatCurrency(d.grossCommission),
+                  netCommission: formatCurrency(d.netCommission),
+                  paymentReceived: formatCurrency(d.paymentReceived),
+                  amountReceivable: formatCurrency(d.amountReceivable),
                 }))}
               />
             </div>
@@ -123,14 +172,14 @@ function ManagementPage() {
                 <ResponsiveContainer>
                   <PieChart>
                     <Pie
-                      data={MANAGEMENT_PROPERTY_TYPES}
+                      data={data.propertyTypesData}
                       dataKey="value"
                       nameKey="name"
                       innerRadius={60}
                       outerRadius={80}
                       paddingAngle={5}
                     >
-                      {MANAGEMENT_PROPERTY_TYPES.map((entry, index) => (
+                      {data.propertyTypesData.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
                           fill={CHART_COLORS[index % CHART_COLORS.length]}
@@ -148,33 +197,15 @@ function ManagementPage() {
       </Card>
 
       <Card>
-        <CardHeader
-          title="Developers vs Property Value"
-          actions={
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-2.5"
-                  style={{ color: TOKENS.muted }}
-                />
-                <Input
-                  className="pl-8 w-48"
-                  placeholder="Search Developers..."
-                />
-              </div>
-              <Button variant="ghost">Report</Button>
-            </div>
-          }
-        />
+        <CardHeader title="Developers vs Property Value" />
         <CardBody>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
               <Table
                 headers={developersHeaders}
-                data={MANAGEMENT_DEVELOPERS.map((d) => ({
+                data={filteredDevelopersData.map((d) => ({
                   developer: d.developer,
-                  value: d.value,
+                  value: formatCurrency(d.value),
                   percentage: `${d.percentage}%`,
                 }))}
               />
@@ -184,21 +215,21 @@ function ManagementPage() {
                 <ResponsiveContainer>
                   <PieChart>
                     <Pie
-                      data={MANAGEMENT_DEVELOPERS}
-                      dataKey="percentage"
+                      data={filteredDevelopersData}
+                      dataKey="value"
                       nameKey="developer"
                       innerRadius={60}
                       outerRadius={80}
                       paddingAngle={5}
                     >
-                      {MANAGEMENT_DEVELOPERS.map((entry, index) => (
+                      {filteredDevelopersData.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
                           fill={CHART_COLORS[index % CHART_COLORS.length]}
                         />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip formatter={(value) => formatCurrency(value)} />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
@@ -213,7 +244,7 @@ function ManagementPage() {
         <CardBody>
           <div style={{ width: "100%", height: 300 }}>
             <ResponsiveContainer>
-              <BarChart data={MANAGEMENT_LEAD_SOURCE} layout="vertical">
+              <BarChart data={data.leadSourceData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
                 <YAxis type="category" dataKey="name" width={200} />
@@ -224,7 +255,7 @@ function ManagementPage() {
                   radius={[0, 6, 6, 0]}
                   barSize={20}
                 >
-                  {MANAGEMENT_LEAD_SOURCE.map((entry, index) => (
+                  {data.leadSourceData.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={MGMT_CHART_COLORS[index % MGMT_CHART_COLORS.length]}
