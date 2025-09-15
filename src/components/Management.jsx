@@ -128,26 +128,7 @@ function ManagementPage() {
       </div>
 
       <Card>
-        <CardHeader
-          title="Total Deals"
-          actions={
-            <div className="flex items-center gap-2">
-              {/* This dropdown is now powered by real data */}
-              <Select
-                className="w-48"
-                value={selectedDeveloper}
-                onChange={(e) => setSelectedDeveloper(e.target.value)}
-              >
-                <option value="All">All Developers</option>
-                {data.allDevelopers.map((dev) => (
-                  <option key={dev} value={dev}>
-                    {dev}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          }
-        />
+        <CardHeader title="Total Deals" />
         <CardBody>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
@@ -197,7 +178,26 @@ function ManagementPage() {
       </Card>
 
       <Card>
-        <CardHeader title="Developers vs Property Value" />
+        <CardHeader
+          title="Developers vs Property Value"
+          actions={
+            <div className="flex items-center gap-2">
+              {/* This dropdown is now powered by real data */}
+              <Select
+                className="w-48"
+                value={selectedDeveloper}
+                onChange={(e) => setSelectedDeveloper(e.target.value)}
+              >
+                <option value="All">All Developers</option>
+                {data.allDevelopers.map((dev) => (
+                  <option key={dev} value={dev}>
+                    {dev}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          }
+        />
         <CardBody>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
