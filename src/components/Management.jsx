@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -20,6 +20,7 @@ import {
   CardHeader,
   CHART_COLORS,
   Input,
+  LoadingSpinner,
   Select,
   Table,
   TOKENS,
@@ -38,6 +39,12 @@ const formatCurrency = (value) => {
 function ManagementPage() {
   const [year, setYear] = useState(new Date().getFullYear().toString());
   const [selectedDeveloper, setSelectedDeveloper] = useState("All");
+  const PAGE_SIZE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [year, selectedDeveloper]);
 
   // Fetch data using our custom hook
   const { data, isLoading, isError, error } = useManagementData(year);
@@ -61,7 +68,7 @@ function ManagementPage() {
 
   // Handle loading and error states
   if (isLoading) {
-    return <div className="text-center p-8">Loading dashboard data...</div>;
+    return <LoadingSpinner />; // USE THE NEW COMPONENT
   }
 
   if (isError) {
@@ -72,13 +79,20 @@ function ManagementPage() {
     );
   }
 
-  // Filter data based on selected developer
+  // Apply developer filter first
   const filteredDevelopersData = data.developersData.filter(
     (dev) => selectedDeveloper === "All" || dev.developer === selectedDeveloper
   );
 
-  // Note: For a fully filtered dashboard, you would re-calculate all metrics
-  // based on the filtered deals. For simplicity here, we are just filtering the developer table/chart.
+  // Pagination calculations
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredDevelopersData.length / PAGE_SIZE)
+  );
+  const paginatedDevelopers = filteredDevelopersData.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
   return (
     <div className="space-y-6">
@@ -128,7 +142,7 @@ function ManagementPage() {
       </div>
 
       <Card>
-        <CardHeader title="Total Deals" />
+        <CardHeader title="Won Deals Breakdown" />
         <CardBody>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
@@ -147,7 +161,7 @@ function ManagementPage() {
             </div>
             <div>
               <h4 className="font-semibold mb-2" style={{ color: TOKENS.text }}>
-                Property Type
+                Property Types (All Deals)
               </h4>
               <div style={{ width: "100%", height: 250 }}>
                 <ResponsiveContainer>
@@ -179,10 +193,9 @@ function ManagementPage() {
 
       <Card>
         <CardHeader
-          title="Developers vs Property Value"
+          title="Developers vs Property Value (All Deals)"
           actions={
             <div className="flex items-center gap-2">
-              {/* This dropdown is now powered by real data */}
               <Select
                 className="w-48"
                 value={selectedDeveloper}
@@ -203,26 +216,76 @@ function ManagementPage() {
             <div className="lg:col-span-2">
               <Table
                 headers={developersHeaders}
-                data={filteredDevelopersData.map((d) => ({
+                data={paginatedDevelopers.map((d) => ({
                   developer: d.developer,
                   value: formatCurrency(d.value),
                   percentage: `${d.percentage}%`,
                 }))}
               />
+              {/* Pagination controls */}
+              <div className="flex items-center justify-between mt-3">
+                <div className="text-sm" style={{ color: TOKENS.muted }}>
+                  Showing{" "}
+                  {filteredDevelopersData.length === 0
+                    ? 0
+                    : (currentPage - 1) * PAGE_SIZE + 1}{" "}
+                  -
+                  {Math.min(
+                    currentPage * PAGE_SIZE,
+                    filteredDevelopersData.length
+                  )}{" "}
+                  of {filteredDevelopersData.length}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 rounded"
+                    style={{
+                      border: `1px solid ${TOKENS.border}`,
+                      background: "transparent",
+                    }}
+                  >
+                    Prev
+                  </button>
+
+                  {/* simple page numbers — show current / total */}
+                  <div
+                    className="px-3 py-1 text-sm"
+                    style={{ color: TOKENS.text }}
+                  >
+                    {currentPage} / {totalPages}
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 rounded"
+                    style={{
+                      border: `1px solid ${TOKENS.border}`,
+                      background: "transparent",
+                    }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
             <div>
               <div style={{ width: "100%", height: 250 }}>
                 <ResponsiveContainer>
                   <PieChart>
                     <Pie
-                      data={filteredDevelopersData}
+                      data={paginatedDevelopers}
                       dataKey="value"
                       nameKey="developer"
                       innerRadius={60}
                       outerRadius={80}
                       paddingAngle={5}
                     >
-                      {filteredDevelopersData.map((entry, index) => (
+                      {paginatedDevelopers.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
                           fill={CHART_COLORS[index % CHART_COLORS.length]}
@@ -242,18 +305,24 @@ function ManagementPage() {
       <Card>
         <CardHeader title="Transaction Breakdown Per Lead Source" />
         <CardBody>
-          <div style={{ width: "100%", height: 300 }}>
+          <div style={{ width: "100%", height: 900 }}>
             <ResponsiveContainer>
               <BarChart data={data.leadSourceData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
-                <YAxis type="category" dataKey="name" width={200} />
+                {/* increase width so long source names don't get clipped */}
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={200}
+                  tick={{ fontSize: 14 }}
+                />
                 <Tooltip />
                 <Bar
                   dataKey="value"
                   fill={TOKENS.primary}
                   radius={[0, 6, 6, 0]}
-                  barSize={20}
+                  barSize={15}
                 >
                   {data.leadSourceData.map((entry, index) => (
                     <Cell

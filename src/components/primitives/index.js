@@ -6,6 +6,7 @@ import CardHeader from "./card-header";
 import Input from "./input";
 import Select from "./select";
 import Table from "./table";
+import LoadingSpinner from "./loading-spinner";
 
 const TOKENS = {
   primary: "#003366", // Dark Blue from Springfield logo text
@@ -504,6 +505,7 @@ export {
   Input,
   Select,
   Table,
+  LoadingSpinner,
   CHART_COLORS,
   TOKENS,
   TEAMS,

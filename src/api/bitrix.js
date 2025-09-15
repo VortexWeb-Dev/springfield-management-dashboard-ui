@@ -6,7 +6,6 @@ const FIELD_NET_COMMISSION = import.meta.env.VITE_FIELD_NET_COMMISSION;
 const FIELD_PAYMENT_RECEIVED = import.meta.env.VITE_FIELD_PAYMENT_RECEIVED;
 const FIELD_PROPERTY_TYPE = import.meta.env.VITE_FIELD_PROPERTY_TYPE;
 const FIELD_AMOUNT_RECEIVABLE = import.meta.env.VITE_FIELD_AMOUNT_RECEIVABLE;
-const DEAL_STAGE_WON = import.meta.env.VITE_DEAL_STAGE_ID_WON;
 
 /**
  * Fetches the definitions for all deal fields.
@@ -23,12 +22,27 @@ export const getDealFields = async () => {
 };
 
 /**
- * Fetches all 'won' deals for a specific financial year.
+ * Fetches list of statuses for the SOURCE entity so we can map source IDs -> human names.
+ * @returns {Promise<Array>} Array of status objects like { ID, ENTITY_ID, STATUS_ID, NAME }
+ */
+export const getStatusList = async () => {
+  const apiUrl = `${BITRIX_URL}/crm.status.list?filter[ENTITY_ID]=SOURCE`;
+  const response = await fetch(apiUrl);
+  if (!response.ok) {
+    throw new Error("Failed to fetch source statuses");
+  }
+  const data = await response.json();
+  return data.result || [];
+};
+
+
+/**
+ * Fetches all deals for a specific financial year based on their creation date.
  * Handles Bitrix API pagination automatically to retrieve all records.
  * @param {string | number} year - The financial year to fetch deals for.
  * @returns {Promise<Array>} A flat array of all deal objects.
  */
-export const getWonDealsByYear = async (year) => {
+export const getDealsByYear = async (year) => {
   let allDeals = [];
   let start = 0;
   let hasMore = true;
@@ -47,8 +61,8 @@ export const getWonDealsByYear = async (year) => {
   const selectParams = selectFields.map((field, i) => `select[${i}]=${field}`).join('&');
 
   while (hasMore) {
-    // Construct the API URL with filters and pagination
-    const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}&filter[>CLOSEDATE]=${year}-01-01T00:00:00&filter[<CLOSEDATE]=${year}-12-31T23:59:59&filter[STAGE_ID]=${DEAL_STAGE_WON}&start=${start}`;
+    // Construct the API URL with filters for DATE_CREATE and pagination
+    const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}&filter[>=DATE_CREATE]=${year}-01-01T00:00:00&filter[<DATE_CREATE]=${Number(year) + 1}-01-01T00:00:00&start=${start}`;
     
     const response = await fetch(apiUrl);
     if (!response.ok) {
