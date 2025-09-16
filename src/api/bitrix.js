@@ -22,6 +22,39 @@ export const getDealFields = async () => {
 };
 
 /**
+ * Fetches the human-readable names for lead sources.
+ * @returns {Promise<Array>} A list of lead source objects.
+ */
+export const getLeadSources = async () => {
+    const response = await fetch(`${BITRIX_URL}/crm.status.list?filter[ENTITY_ID]=SOURCE`);
+    if (!response.ok) throw new Error("Failed to fetch Bitrix lead sources");
+    const data = await response.json();
+    return data.result;
+};
+
+/**
+ * Fetches the human-readable names for lead statuses (for the sales funnel).
+ * @returns {Promise<Array>} A list of lead status objects.
+ */
+export const getLeadStatuses = async () => {
+    const response = await fetch(`${BITRIX_URL}/crm.status.list?filter[ENTITY_ID]=STATUS`);
+    if (!response.ok) throw new Error("Failed to fetch Bitrix lead statuses");
+    const data = await response.json();
+    return data.result;
+};
+
+/**
+ * Fetches the definitions for all lead fields.
+ * @returns {Promise<Object>} The fields definition object.
+ */
+export const getLeadFields = async () => {
+  const response = await fetch(`${BITRIX_URL}/crm.lead.fields`);
+  if (!response.ok) throw new Error("Failed to fetch Bitrix lead fields");
+  const data = await response.json();
+  return data.result;
+};
+
+/**
  * Fetches list of statuses for the SOURCE entity so we can map source IDs -> human names.
  * @returns {Promise<Array>} Array of status objects like { ID, ENTITY_ID, STATUS_ID, NAME }
  */
@@ -82,4 +115,36 @@ export const getDealsByYear = async (year) => {
   }
 
   return allDeals;
+};
+
+/**
+ * Fetches all leads for a specific financial year.
+ * @param {string | number} year - The financial year.
+ * @returns {Promise<Array>} A flat array of all lead objects.
+ */
+export const getLeadsByYear = async (year) => {
+    let allLeads = [];
+    let start = 0;
+    let hasMore = true;
+    const selectFields = ["*", 
+        import.meta.env.VITE_FIELD_LEAD_COLLECTION_SOURCE,
+        import.meta.env.VITE_FIELD_LEAD_MODE_OF_ENQUIRY,
+        import.meta.env.VITE_FIELD_LEAD_PROPERTY_REFERENCE,
+        import.meta.env.VITE_FIELD_LEAD_PROPERTY_LOCATION
+    ];
+    const selectParams = selectFields.map((field, i) => `select[${i}]=${field}`).join('&');
+
+    while(hasMore) {
+        // const apiUrl = `${BITRIX_URL}/crm.lead.list?${selectParams}&filter[>=DATE_CREATE]=${year}-01-01T00:00:00&filter[<DATE_CREATE]=${Number(year) + 1}-01-01T00:00:00&start=${start}`;
+        const apiUrl = `${BITRIX_URL}/crm.lead.list?${selectParams}&filter[>DATE_CREATE]=2025-09-09&filter[<DATE_CREATE]=2025-12-31&start=${start}`;
+        const response = await fetch(apiUrl);
+        if(!response.ok) throw new Error(`Failed to fetch leads for year ${year}`);
+        const data = await response.json();
+        if (data.result && data.result.length > 0) {
+            allLeads = [...allLeads, ...data.result];
+        }
+        hasMore = !!data.next;
+        start = data.next || 0;
+    }
+    return allLeads;
 };

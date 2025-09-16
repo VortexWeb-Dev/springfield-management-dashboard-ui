@@ -324,7 +324,7 @@ function ManagementPage() {
                   radius={[0, 6, 6, 0]}
                   barSize={15}
                 >
-                  {data.leadSourceData.map((entry, index) => (
+                  {data?.leadSourceData?.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={MGMT_CHART_COLORS[index % MGMT_CHART_COLORS.length]}

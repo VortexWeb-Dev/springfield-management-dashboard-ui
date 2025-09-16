@@ -1,9 +1,4 @@
-import {
-  LayoutGrid,
-  Target,
-  TrendingUp,
-  Building2,
-} from "lucide-react";
+import { LayoutGrid, Target, TrendingUp, Building2 } from "lucide-react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -19,25 +14,51 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { Button, Card, CardBody, CardHeader, CHART_COLORS, FUNNEL, LEADS, REGIONS, TOKENS } from "./primitives";
+import {
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  LoadingSpinner,
+  CHART_COLORS,
+  TOKENS,
+} from "./primitives";
 import KPI from "./KPI";
+import { useOverviewData } from "../hooks/useOverviewData";
+
+const formatCurrency = (value) =>
+  new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED" }).format(
+    value
+  );
 
 function Overview() {
+  const currentYear = new Date().getFullYear().toString();
+  const { data, isLoading, isError, error } = useOverviewData(currentYear);
+
+  if (isLoading)
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  if (isError)
+    return (
+      <div className="text-center p-8 text-red-500">Error: {error.message}</div>
+    );
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
       <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-5 gap-4">
         <KPI
-          label="Today Revenue"
-          value={`AED ${(81200).toLocaleString()}`}
-          delta={8}
+          label="Today's Potential Revenue"
+          value={formatCurrency(data.kpis.todayRevenue)}
         />
-        <KPI label="Active Listings" value={342} delta={3} />
-        <KPI label="New Leads" value={56} delta={12} />
-        <KPI label="Pending Tasks" value={41} delta={-5} />
+        <KPI label="Open Leads" value={data.kpis.activeListings} />
+        <KPI label="New Leads Today" value={data.kpis.newLeads} />
+        <KPI label="Pending Tasks" value={data.kpis.pendingTasks} />
         <KPI
-          label="Commission Payout"
-          value={`AED ${(146000).toLocaleString()}`}
-          delta={6}
+          label="Today's Est. Commission"
+          value={formatCurrency(data.kpis.commissionPayout)}
         />
       </div>
 
@@ -49,11 +70,11 @@ function Overview() {
         <CardBody>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <Button>New Lead</Button>
-            <Button variant="ghost">Upload Listing</Button>
-            <Button variant="ghost">Assign Task</Button>
-            <Button variant="ghost">Approve Offer</Button>
-            <Button variant="ghost">Generate Report</Button>
-            <Button variant="ghost">Create Campaign</Button>
+            <Button>Upload Listing</Button>
+            <Button>Assign Task</Button>
+            <Button>Approve Offer</Button>
+            <Button>Generate Report</Button>
+            <Button>Create Campaign</Button>
           </div>
         </CardBody>
       </Card>
@@ -66,11 +87,16 @@ function Overview() {
         <CardBody>
           <div style={{ width: "100%", height: 260 }}>
             <ResponsiveContainer>
-              <BarChart data={FUNNEL}>
-                <CartesianGrid strokeDasharray="3 3" stroke={TOKENS.border} />
-                <XAxis dataKey="stage" stroke={TOKENS.muted} />
-                <YAxis stroke={TOKENS.muted} />
-                <Tooltip />
+              <BarChart data={data.salesFunnelData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="stage"
+                  angle={-20}
+                  textAnchor="end"
+                  height={50}
+                />
+                <YAxis />
+                <Tooltip formatter={(value) => [value, "Leads"]} />
                 <Bar
                   dataKey="value"
                   fill={TOKENS.primary}
@@ -88,19 +114,19 @@ function Overview() {
           icon={<Target size={18} style={{ color: TOKENS.primary }} />}
         />
         <CardBody>
-          <div style={{ width: "100%", height: 260 }}>
+          <div style={{ width: "100%", height: 360 }}>
             <ResponsiveContainer>
               <PieChart>
                 <Pie
-                  data={LEADS}
+                  data={data.leadSourcesData}
                   dataKey="value"
                   nameKey="name"
-                  outerRadius={90}
+                  outerRadius={100}
                   innerRadius={45}
                 >
-                  {LEADS.map((_, i) => (
+                  {data.leadSourcesData.map((_, i) => (
                     <Cell
-                      key={i}
+                      key={`cell-${i}`}
                       fill={CHART_COLORS[i % CHART_COLORS.length]}
                     />
                   ))}
@@ -115,17 +141,22 @@ function Overview() {
 
       <Card className="xl:col-span-3">
         <CardHeader
-          title="Region-wise Revenue"
+          title="Region-wise Potential Revenue"
           icon={<Building2 size={18} style={{ color: TOKENS.primary }} />}
         />
         <CardBody>
           <div style={{ width: "100%", height: 260 }}>
             <ResponsiveContainer>
-              <LineChart data={REGIONS}>
-                <CartesianGrid strokeDasharray="3 3" stroke={TOKENS.border} />
-                <XAxis dataKey="name" stroke={TOKENS.muted} />
-                <YAxis stroke={TOKENS.muted} />
-                <Tooltip />
+              <LineChart data={data.regionRevenueData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip
+                  formatter={(value) => [
+                    formatCurrency(value),
+                    "Potential Revenue",
+                  ]}
+                />
                 <Line
                   type="monotone"
                   dataKey="revenue"
@@ -141,5 +172,4 @@ function Overview() {
     </div>
   );
 }
-
 export default Overview;
