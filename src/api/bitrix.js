@@ -290,3 +290,34 @@ export const getDealsByAgent = async (agentId) => {
     return allDeals;
 };
 
+/**
+ * Fetches all "won" deals for a given year, handling pagination.
+ * This is used for calculating agent rankings.
+ * @param {string | number} year - The year to fetch deals for.
+ * @returns {Promise<Array>} A flat array of all "won" deal objects for the year.
+ */
+export const getAllWonDealsForYear = async (year) => {
+    let allDeals = [];
+    let start = 0;
+    let hasMore = true;
+
+    const wonStageId = import.meta.env.VITE_DEAL_STAGE_ID_WON;
+    const selectFields = ["ASSIGNED_BY_ID", "CLOSEDATE", import.meta.env.VITE_FIELD_GROSS_COMMISSION];
+    const selectParams = selectFields.filter(Boolean).map((field, i) => `select[${i}]=${field}`).join('&');
+
+    while (hasMore) {
+        const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}&filter[STAGE_ID]=${wonStageId}&filter[>=CLOSEDATE]=${year}-01-01T00:00:00&filter[<=CLOSEDATE]=${year}-12-31T23:59:59&start=${start}`;
+        const response = await fetch(apiUrl);
+        if (!response.ok) throw new Error(`Failed to fetch won deals for year ${year}`);
+        const data = await response.json();
+
+        allDeals = allDeals.concat(data.result || []);
+        
+        if (data.next) {
+            start = data.next;
+        } else {
+            hasMore = false;
+        }
+    }
+    return allDeals;
+};
