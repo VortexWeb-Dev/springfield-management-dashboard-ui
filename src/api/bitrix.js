@@ -94,12 +94,17 @@ export const getDealsByYear = async (year) => {
   const selectParams = selectFields.map((field, i) => `select[${i}]=${field}`).join('&');
 
   while (hasMore) {
-    // Construct the API URL with filters for DATE_CREATE and pagination
-    const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}&filter[>=DATE_CREATE]=${year}-01-01T00:00:00&filter[<DATE_CREATE]=${Number(year) + 1}-01-01T00:00:00&start=${start}`;
+    // Conditionally create the date filter string
+    const dateFilter = year 
+      ? `&filter[>=DATE_CREATE]=${year}-01-01T00:00:00&filter[<DATE_CREATE]=${Number(year) + 1}-01-01T00:00:00`
+      : '';
+
+    // Construct the API URL with pagination and the conditional date filter
+    const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}${dateFilter}&start=${start}`;
     
     const response = await fetch(apiUrl);
     if (!response.ok) {
-        throw new Error(`Failed to fetch deals for year ${year}`);
+        throw new Error(`Failed to fetch deals for year ${year || 'all years'}`);
     }
     const data = await response.json();
 

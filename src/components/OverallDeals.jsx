@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Download, Search, Building2, Briefcase, Layers } from "lucide-react";
+import { Download, Building2, Briefcase, Layers } from "lucide-react";
 import {
   ResponsiveContainer,
   Tooltip,
@@ -15,33 +15,50 @@ import {
   CardBody,
   CardHeader,
   CHART_COLORS,
-  DEVELOPERS,
+  LoadingSpinner,
   Input,
-  OVERALL_DEALS,
-  PROPERTY_TYPES,
   Table,
   TOKENS,
 } from "./primitives";
 import KPI from "./KPI";
+import { useOverallDealsData } from "../hooks/useOverallDealsData";
+
+const formatCurrency = (value) =>
+  new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED" }).format(
+    value || 0
+  );
 
 function OverallDealsPage() {
+  const { data, isLoading, isError, error } = useOverallDealsData();
+
   const [dealQuery, setDealQuery] = useState("");
   const [developerQuery, setDeveloperQuery] = useState("");
 
   const filteredDeals = useMemo(() => {
-    return OVERALL_DEALS.filter((d) =>
-      [d.month].join(" ").toLowerCase().includes(dealQuery.toLowerCase())
+    if (!data?.monthlyDealsData) return [];
+    return data.monthlyDealsData.filter((d) =>
+      d.month.toLowerCase().includes(dealQuery.toLowerCase())
     );
-  }, [dealQuery]);
+  }, [data, dealQuery]);
 
   const filteredDevelopers = useMemo(() => {
-    return DEVELOPERS.filter((d) =>
-      [d.developer]
-        .join(" ")
-        .toLowerCase()
-        .includes(developerQuery.toLowerCase())
+    if (!data?.developersData) return [];
+    return data.developersData.filter((d) =>
+      d.developer.toLowerCase().includes(developerQuery.toLowerCase())
     );
-  }, [developerQuery]);
+  }, [data, developerQuery]);
+
+  // MODIFIED: Simplified the chart data preparation.
+  // This now only sanitizes the data (ensures percentage is a number) without grouping into "Other".
+  const developerChartData = useMemo(() => {
+    if (!filteredDevelopers) return [];
+
+    // Ensure the dataKey value is a number for every developer.
+    return filteredDevelopers.map((dev) => ({
+      ...dev,
+      totalPropertyPercentage: parseFloat(dev.totalPropertyPercentage) || 0,
+    }));
+  }, [filteredDevelopers]);
 
   const dealsHeaders = [
     "Month",
@@ -52,24 +69,31 @@ function OverallDealsPage() {
     "Payment Received",
     "Amount Receivable",
   ];
-  const developersHeaders = [
-    "Developer",
-    "Total Property Value",
-    "Total Property Percentage",
-  ];
+  const developersHeaders = ["Developer", "Total Property Value", "Percentage"];
+
+  if (isLoading)
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  if (isError)
+    return (
+      <div className="text-center p-8 text-red-500">Error: {error.message}</div>
+    );
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPI label="Total Deals" value={7} />
-        <KPI label="Deals Won" value={7} />
+        <KPI label="Total Deals" value={data.kpis.totalDeals} />
+        <KPI label="Deals Won" value={data.kpis.dealsWon} />
         <KPI
           label="Gross Commission"
-          value={`AED ${(321291.59).toLocaleString()}`}
+          value={formatCurrency(data.kpis.grossCommission)}
         />
         <KPI
           label="Net Commission"
-          value={`AED ${(3291291.59).toLocaleString()}`}
+          value={formatCurrency(data.kpis.netCommission)}
         />
       </div>
 
@@ -80,20 +104,14 @@ function OverallDealsPage() {
           actions={
             <div className="flex items-center gap-2">
               <div className="relative">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-2.5"
-                  style={{ color: TOKENS.muted }}
-                />
                 <Input
                   className="pl-8"
-                  placeholder="Search deals..."
+                  placeholder="Search month..."
                   value={dealQuery}
                   onChange={(e) => setDealQuery(e.target.value)}
                 />
               </div>
               <Button
-                variant="ghost"
                 onClick={() =>
                   downloadCSV(
                     filteredDeals,
@@ -120,13 +138,12 @@ function OverallDealsPage() {
           <Table
             headers={dealsHeaders}
             data={filteredDeals.map((d) => ({
-              month: d.month,
-              deals: d.deals,
-              propertyPrice: `AED ${d.propertyPrice.toLocaleString()}`,
-              grossCommission: `AED ${d.grossCommission.toLocaleString()}`,
-              netCommission: `AED ${d.netCommission.toLocaleString()}`,
-              paymentReceived: `AED ${d.paymentReceived.toLocaleString()}`,
-              amountReceivable: `AED ${d.amountReceivable.toLocaleString()}`,
+              ...d,
+              propertyPrice: formatCurrency(d.propertyPrice),
+              grossCommission: formatCurrency(d.grossCommission),
+              netCommission: formatCurrency(d.netCommission),
+              paymentReceived: formatCurrency(d.paymentReceived),
+              amountReceivable: formatCurrency(d.amountReceivable),
             }))}
           />
         </CardBody>
@@ -139,11 +156,6 @@ function OverallDealsPage() {
             icon={<Building2 size={18} style={{ color: TOKENS.primary }} />}
             actions={
               <div className="relative">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-2.5"
-                  style={{ color: TOKENS.muted }}
-                />
                 <Input
                   className="pl-8 w-40"
                   placeholder="Search developers..."
@@ -155,34 +167,44 @@ function OverallDealsPage() {
           />
           <CardBody>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Table
-                headers={developersHeaders}
-                data={filteredDevelopers.map((d) => ({
-                  developer: d.developer,
-                  totalPropertyValue: `AED ${d.totalPropertyValue.toLocaleString()}`,
-                  totalPropertyPercentage: `${d.totalPropertyPercentage}%`,
-                }))}
-              />
-              <div style={{ width: "100%", height: 200 }}>
-                <ResponsiveContainer>
-                  <PieChart>
-                    <Pie
-                      data={filteredDevelopers}
-                      dataKey="totalPropertyPercentage"
-                      nameKey="developer"
-                      outerRadius={90}
-                    >
-                      {filteredDevelopers.map((_, i) => (
-                        <Cell
-                          key={i}
-                          fill={CHART_COLORS[i % CHART_COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Legend />
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+              <div className="min-w-0">
+                <Table
+                  headers={developersHeaders}
+                  data={filteredDevelopers.map((d) => ({
+                    developer: d.developer,
+                    totalPropertyValue: formatCurrency(d.totalPropertyValue),
+                    totalPropertyPercentage: `${(
+                      parseFloat(d.totalPropertyPercentage) || 0
+                    ).toFixed(2)}%`,
+                  }))}
+                />
+              </div>
+              <div className="min-w-0">
+                <div style={{ width: "100%", height: 400 }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie
+                        data={developerChartData}
+                        dataKey="totalPropertyPercentage"
+                        nameKey="developer"
+                        outerRadius={100}
+                      >
+                        {developerChartData.map((_, i) => (
+                          <Cell
+                            key={`cell-${i}`}
+                            fill={CHART_COLORS[i % CHART_COLORS.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <Legend />
+                      <Tooltip
+                        formatter={(value) =>
+                          `${parseFloat(value).toFixed(2)}%`
+                        }
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
           </CardBody>
@@ -194,24 +216,24 @@ function OverallDealsPage() {
             icon={<Layers size={18} style={{ color: TOKENS.primary }} />}
           />
           <CardBody>
-            <div style={{ width: "100%", height: 260 }}>
+            <div style={{ width: "100%", height: 400 }}>
               <ResponsiveContainer>
                 <PieChart>
                   <Pie
-                    data={PROPERTY_TYPES}
+                    data={data.propertyTypesData}
                     dataKey="value"
                     nameKey="name"
-                    outerRadius={90}
+                    outerRadius={100}
                   >
-                    {PROPERTY_TYPES.map((_, i) => (
+                    {data.propertyTypesData.map((_, i) => (
                       <Cell
-                        key={i}
+                        key={`cell-${i}`}
                         fill={CHART_COLORS[i % CHART_COLORS.length]}
                       />
                     ))}
                   </Pie>
                   <Legend />
-                  <Tooltip />
+                  <Tooltip formatter={(value, name) => [value, name]} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
