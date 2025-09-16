@@ -201,3 +201,41 @@ export const getLeadsByYear = async (year) => {
   }
   return allLeads;
 };
+
+/**
+ * Fetches all active users, handling pagination.
+ * @returns {Promise<Array>} A flat array of all user objects.
+ */
+export const getAllUsers = async () => {
+  let allUsers = [];
+  let start = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const apiUrl = `${BITRIX_URL}/user.get?filter[ACTIVE]=true&start=${start}`;
+    const response = await fetch(apiUrl);
+    if (!response.ok) throw new Error("Failed to fetch users from Bitrix");
+    const data = await response.json();
+
+    allUsers = allUsers.concat(data.result || []);
+
+    if (data.next) {
+      start = data.next;
+    } else {
+      hasMore = false;
+    }
+  }
+  return allUsers;
+};
+
+/**
+ * Fetches all departments.
+ * @returns {Promise<Array>} A flat array of all department objects.
+ */
+export const getDepartments = async () => {
+  const apiUrl = `${BITRIX_URL}/department.get`;
+  const response = await fetch(apiUrl);
+  if (!response.ok) throw new Error("Failed to fetch departments from Bitrix");
+  const data = await response.json();
+  return data.result || [];
+};
