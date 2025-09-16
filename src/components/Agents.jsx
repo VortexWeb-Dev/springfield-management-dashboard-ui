@@ -16,7 +16,7 @@ import {
   Legend,
 } from "recharts";
 import { downloadCSV } from "../utils";
-import { AGENTS, Badge, Button, Card, CardBody, CardHeader, Input, Select, TEAMS, TOKENS } from "./primitives";
+import { AGENTS, Badge, Button, Card, CardBody, CardHeader, CHART_COLORS, Input, Select, TEAMS, TOKENS } from "./primitives";
 
 function Agents() {
   const [query, setQuery] = useState("");
