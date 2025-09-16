@@ -3,6 +3,7 @@ import Button from "./button";
 import Card from "./card";
 import CardBody from "./card-body";
 import CardHeader from "./card-header";
+import CardFooter from "./card-footer"
 import Input from "./input";
 import Select from "./select";
 import Table from "./table";
@@ -502,6 +503,7 @@ export {
   Card,
   CardBody,
   CardHeader,
+  CardFooter,
   Input,
   Select,
   Table,

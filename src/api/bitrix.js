@@ -26,10 +26,12 @@ export const getDealFields = async () => {
  * @returns {Promise<Array>} A list of lead source objects.
  */
 export const getLeadSources = async () => {
-    const response = await fetch(`${BITRIX_URL}/crm.status.list?filter[ENTITY_ID]=SOURCE`);
-    if (!response.ok) throw new Error("Failed to fetch Bitrix lead sources");
-    const data = await response.json();
-    return data.result;
+  const response = await fetch(
+    `${BITRIX_URL}/crm.status.list?filter[ENTITY_ID]=SOURCE`
+  );
+  if (!response.ok) throw new Error("Failed to fetch Bitrix lead sources");
+  const data = await response.json();
+  return data.result;
 };
 
 /**
@@ -37,10 +39,12 @@ export const getLeadSources = async () => {
  * @returns {Promise<Array>} A list of lead status objects.
  */
 export const getLeadStatuses = async () => {
-    const response = await fetch(`${BITRIX_URL}/crm.status.list?filter[ENTITY_ID]=STATUS`);
-    if (!response.ok) throw new Error("Failed to fetch Bitrix lead statuses");
-    const data = await response.json();
-    return data.result;
+  const response = await fetch(
+    `${BITRIX_URL}/crm.status.list?filter[ENTITY_ID]=STATUS`
+  );
+  if (!response.ok) throw new Error("Failed to fetch Bitrix lead statuses");
+  const data = await response.json();
+  return data.result;
 };
 
 /**
@@ -68,7 +72,6 @@ export const getStatusList = async () => {
   return data.result || [];
 };
 
-
 /**
  * Fetches all deals for a specific financial year based on their creation date.
  * Handles Bitrix API pagination automatically to retrieve all records.
@@ -91,20 +94,24 @@ export const getDealsByYear = async (year) => {
     FIELD_AMOUNT_RECEIVABLE,
   ];
 
-  const selectParams = selectFields.map((field, i) => `select[${i}]=${field}`).join('&');
+  const selectParams = selectFields
+    .map((field, i) => `select[${i}]=${field}`)
+    .join("&");
 
   while (hasMore) {
     // Conditionally create the date filter string
-    const dateFilter = year 
-      ? `&filter[>=DATE_CREATE]=${year}-01-01T00:00:00&filter[<DATE_CREATE]=${Number(year) + 1}-01-01T00:00:00`
-      : '';
+    const dateFilter = year
+      ? `&filter[>=DATE_CREATE]=${year}-01-01T00:00:00&filter[<DATE_CREATE]=${
+          Number(year) + 1
+        }-01-01T00:00:00`
+      : "";
 
     // Construct the API URL with pagination and the conditional date filter
     const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}${dateFilter}&start=${start}`;
-    
+
     const response = await fetch(apiUrl);
     if (!response.ok) {
-        throw new Error(`Failed to fetch deals for year ${year || 'all years'}`);
+      throw new Error(`Failed to fetch deals for year ${year || "all years"}`);
     }
     const data = await response.json();
 
@@ -123,33 +130,74 @@ export const getDealsByYear = async (year) => {
 };
 
 /**
+ * Fetches a paginated list of deals.
+ * @param {number} start - The starting record number for pagination.
+ * @returns {Promise<Object>} An object containing the list of deals and the total count.
+ */
+export const getDealsPaginated = async (start = 0) => {
+  const selectFields = [
+    "ID",
+    "CLOSEDATE",
+    "OPPORTUNITY",
+    import.meta.env.VITE_FIELD_PROJECT_NAME,
+    import.meta.env.VITE_FIELD_TRANSACTION_TYPE,
+    import.meta.env.VITE_FIELD_AGENT_NAME,
+    import.meta.env.VITE_FIELD_PROPERTY_REFERENCE,
+    import.meta.env.VITE_FIELD_DEVELOPER_NAME,
+    import.meta.env.VITE_FIELD_PROPERTY_TYPE,
+    import.meta.env.VITE_FIELD_GROSS_COMMISSION,
+    import.meta.env.VITE_FIELD_NET_COMMISSION,
+    import.meta.env.VITE_FIELD_PAYMENT_RECEIVED,
+    import.meta.env.VITE_FIELD_AMOUNT_RECEIVABLE,
+  ];
+  const selectParams = selectFields
+    .filter(Boolean)
+    .map((field, i) => `select[${i}]=${field}`)
+    .join("&");
+  const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}&start=${start}`;
+
+  const response = await fetch(apiUrl);
+  if (!response.ok)
+    throw new Error("Failed to fetch paginated deals from Bitrix");
+
+  const data = await response.json();
+  return {
+    deals: data.result || [],
+    total: data.total || 0,
+  };
+};
+
+/**
  * Fetches all leads for a specific financial year.
  * @param {string | number} year - The financial year.
  * @returns {Promise<Array>} A flat array of all lead objects.
  */
 export const getLeadsByYear = async (year) => {
-    let allLeads = [];
-    let start = 0;
-    let hasMore = true;
-    const selectFields = ["*", 
-        import.meta.env.VITE_FIELD_LEAD_COLLECTION_SOURCE,
-        import.meta.env.VITE_FIELD_LEAD_MODE_OF_ENQUIRY,
-        import.meta.env.VITE_FIELD_LEAD_PROPERTY_REFERENCE,
-        import.meta.env.VITE_FIELD_LEAD_PROPERTY_LOCATION
-    ];
-    const selectParams = selectFields.map((field, i) => `select[${i}]=${field}`).join('&');
+  let allLeads = [];
+  let start = 0;
+  let hasMore = true;
+  const selectFields = [
+    "*",
+    import.meta.env.VITE_FIELD_LEAD_COLLECTION_SOURCE,
+    import.meta.env.VITE_FIELD_LEAD_MODE_OF_ENQUIRY,
+    import.meta.env.VITE_FIELD_LEAD_PROPERTY_REFERENCE,
+    import.meta.env.VITE_FIELD_LEAD_PROPERTY_LOCATION,
+  ];
+  const selectParams = selectFields
+    .map((field, i) => `select[${i}]=${field}`)
+    .join("&");
 
-    while(hasMore) {
-        // const apiUrl = `${BITRIX_URL}/crm.lead.list?${selectParams}&filter[>=DATE_CREATE]=${year}-01-01T00:00:00&filter[<DATE_CREATE]=${Number(year) + 1}-01-01T00:00:00&start=${start}`;
-        const apiUrl = `${BITRIX_URL}/crm.lead.list?${selectParams}&filter[>DATE_CREATE]=2025-09-09&filter[<DATE_CREATE]=2025-12-31&start=${start}`;
-        const response = await fetch(apiUrl);
-        if(!response.ok) throw new Error(`Failed to fetch leads for year ${year}`);
-        const data = await response.json();
-        if (data.result && data.result.length > 0) {
-            allLeads = [...allLeads, ...data.result];
-        }
-        hasMore = !!data.next;
-        start = data.next || 0;
+  while (hasMore) {
+    // const apiUrl = `${BITRIX_URL}/crm.lead.list?${selectParams}&filter[>=DATE_CREATE]=${year}-01-01T00:00:00&filter[<DATE_CREATE]=${Number(year) + 1}-01-01T00:00:00&start=${start}`;
+    const apiUrl = `${BITRIX_URL}/crm.lead.list?${selectParams}&filter[>DATE_CREATE]=2025-09-09&filter[<DATE_CREATE]=2025-12-31&start=${start}`;
+    const response = await fetch(apiUrl);
+    if (!response.ok) throw new Error(`Failed to fetch leads for year ${year}`);
+    const data = await response.json();
+    if (data.result && data.result.length > 0) {
+      allLeads = [...allLeads, ...data.result];
     }
-    return allLeads;
+    hasMore = !!data.next;
+    start = data.next || 0;
+  }
+  return allLeads;
 };

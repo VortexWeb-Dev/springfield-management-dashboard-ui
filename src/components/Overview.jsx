@@ -69,12 +69,27 @@ function Overview() {
         />
         <CardBody>
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <Button>New Lead</Button>
-            <Button>Upload Listing</Button>
-            <Button>Assign Task</Button>
-            <Button>Approve Offer</Button>
-            <Button>Generate Report</Button>
-            <Button>Create Campaign</Button>
+            <Button
+              href="https://crm.springfieldproperties.ae/crm/lead/details/0/?st%5Btool%5D=crm&st%5Bc_section%5D=lead_section&st%5Bc_sub_section%5D=kanban&st%5Bc_element%5D=create_button&st%5Bp1%5D=crmMode_classic&st%5Bcategory%5D=entity_operations&st%5Bevent%5D=entity_add_open&st%5Btype%5D=lead&any=details%2F0%2F"
+              newTab
+            >
+              New Lead
+            </Button>
+            <Button href="/upload-listing" newTab>
+              Upload Listing
+            </Button>
+            <Button href="/assign-task" newTab>
+              Assign Task
+            </Button>
+            <Button href="/approve-offer" newTab>
+              Approve Offer
+            </Button>
+            <Button href="/generate-report" newTab>
+              Generate Report
+            </Button>
+            <Button href="/create-campaign" newTab>
+              Create Campaign
+            </Button>
           </div>
         </CardBody>
       </Card>
