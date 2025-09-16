@@ -1,8 +1,10 @@
+import { useState, useMemo } from "react";
 import { Users } from "lucide-react";
 import {
   Card,
   CardBody,
   CardHeader,
+  Input,
   LoadingSpinner,
   TOKENS,
 } from "./primitives";
@@ -10,6 +12,32 @@ import { useTeamsData } from "../hooks/useTeamsData";
 
 function TeamsPage() {
   const { data: teams, isLoading, isError, error } = useTeamsData();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Memoize the filtering logic to avoid re-calculating on every render
+  const filteredTeams = useMemo(() => {
+    if (!teams) return [];
+
+    // If there's no search query, return all teams
+    if (!searchQuery.trim()) {
+      return teams;
+    }
+
+    const lowerCaseQuery = searchQuery.toLowerCase();
+
+    // 1. Filter members within each team
+    // 2. Filter out teams that have no matching members left
+    return teams
+      .map((team) => {
+        const filteredMembers = team.members.filter(
+          (member) =>
+            member.name.toLowerCase().includes(lowerCaseQuery) ||
+            member.role.toLowerCase().includes(lowerCaseQuery)
+        );
+        return { ...team, members: filteredMembers };
+      })
+      .filter((team) => team.members.length > 0);
+  }, [teams, searchQuery]);
 
   if (isLoading)
     return (
@@ -17,6 +45,7 @@ function TeamsPage() {
         <LoadingSpinner />
       </div>
     );
+
   if (isError)
     return (
       <div className="text-center p-8 text-red-500">Error: {error.message}</div>
@@ -24,8 +53,23 @@ function TeamsPage() {
 
   return (
     <div className="space-y-4">
-      {teams && teams.length > 0 ? (
-        teams.map((team) => (
+      {/* Search Bar */}
+      <Card>
+        <CardBody>
+          <div className="relative">
+            <Input
+              className="pl-10 w-full"
+              placeholder="Search by name or role..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* Display Filtered Teams */}
+      {filteredTeams && filteredTeams.length > 0 ? (
+        filteredTeams.map((team) => (
           <Card key={team.name}>
             <CardHeader
               title={`${team.name} (${team.members.length})`}
@@ -68,7 +112,7 @@ function TeamsPage() {
         <Card>
           <CardBody>
             <p className="text-center text-gray-500">
-              No teams or members found.
+              No members found matching your search.
             </p>
           </CardBody>
         </Card>
