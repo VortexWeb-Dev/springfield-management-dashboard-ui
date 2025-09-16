@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
-import { Download, Search, BarChart2 } from "lucide-react";
+import { Download, BarChart2 } from "lucide-react";
 import { downloadCSV } from "../utils";
 import {
-  AGENTS,
   Button,
   Card,
   CardBody,
@@ -10,30 +9,46 @@ import {
   Input,
   Select,
   Table,
-  TEAMS,
+  LoadingSpinner,
   TOKENS,
 } from "./primitives";
+import { useAgentLastTransactionData } from "../hooks/useAgentLastTransactionData";
+
+const formatCurrency = (value) =>
+  `AED ${new Intl.NumberFormat("en-AE").format(value || 0)}`;
 
 function AgentLastTransactionPage() {
+  const currentYear = new Date().getFullYear();
+  const { data, isLoading, isError, error } =
+    useAgentLastTransactionData(currentYear);
+
   const [query, setQuery] = useState("");
   const [selectedTeam, setSelectedTeam] = useState("All");
   const [selectedAgent, setSelectedAgent] = useState("All");
 
+  const agentsWithTransactions = useMemo(() => {
+    if (!data?.agents) return [];
+    // Only include agents who have a last transaction
+    return data.agents.filter((agent) => agent.lastTransactionDate);
+  }, [data]);
+
   const filteredAgents = useMemo(() => {
-    let list = AGENTS.filter((agent) => agent.lastTransactionDate);
+    let list = agentsWithTransactions;
+
     if (selectedTeam !== "All") {
-      list = list.filter((agent) => agent.team === selectedTeam);
+      list = list.filter((agent) => agent.team.includes(selectedTeam));
     }
     if (selectedAgent !== "All") {
       list = list.filter((agent) => agent.id === selectedAgent);
     }
+
     return list.filter((agent) =>
       [agent.name, agent.team, agent.lastTransactionProject]
         .join(" ")
         .toLowerCase()
         .includes(query.toLowerCase())
     );
-  }, [query, selectedTeam, selectedAgent]);
+  }, [query, selectedTeam, selectedAgent, agentsWithTransactions]);
 
   const transactionHeaders = [
     "Agent",
@@ -43,6 +58,17 @@ function AgentLastTransactionPage() {
     "Amount",
     "Gross Commission",
   ];
+
+  if (isLoading)
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  if (isError)
+    return (
+      <div className="text-center p-8 text-red-500">Error: {error.message}</div>
+    );
 
   return (
     <div className="space-y-4">
@@ -57,8 +83,7 @@ function AgentLastTransactionPage() {
                 value={selectedTeam}
                 onChange={(e) => setSelectedTeam(e.target.value)}
               >
-                <option value="All">All Teams</option>
-                {TEAMS.map((team) => (
+                {data?.teams.map((team) => (
                   <option key={team.name} value={team.name}>
                     {team.name}
                   </option>
@@ -70,21 +95,16 @@ function AgentLastTransactionPage() {
                 onChange={(e) => setSelectedAgent(e.target.value)}
               >
                 <option value="All">All Agents</option>
-                {filteredAgents.map((a) => (
+                {agentsWithTransactions.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
                   </option>
                 ))}
               </Select>
               <div className="relative">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-2.5"
-                  style={{ color: TOKENS.muted }}
-                />
                 <Input
                   className="pl-8 w-48"
-                  placeholder="Search agents..."
+                  placeholder="Search..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
@@ -93,7 +113,15 @@ function AgentLastTransactionPage() {
                 variant="ghost"
                 onClick={() =>
                   downloadCSV(
-                    filteredAgents,
+                    filteredAgents.map((a) => ({
+                      // Map to a flat object for CSV
+                      name: a.name,
+                      team: a.team,
+                      lastTransactionDate: a.lastTransactionDate,
+                      lastTransactionProject: a.lastTransactionProject,
+                      lastTransactionAmount: a.lastTransactionAmount,
+                      grossCommission: a.grossCommission,
+                    })),
                     [
                       "name",
                       "team",
@@ -106,8 +134,7 @@ function AgentLastTransactionPage() {
                   )
                 }
               >
-                <Download size={16} className="inline mr-1" />
-                Export
+                <Download size={16} className="inline mr-1" /> Export
               </Button>
             </div>
           }
@@ -120,10 +147,8 @@ function AgentLastTransactionPage() {
               Team: a.team,
               "Transaction Date": a.lastTransactionDate,
               "Last Project": a.lastTransactionProject,
-              Amount: `AED ${a.lastTransactionAmount.toLocaleString()}`,
-              "Gross Commission": `AED ${(
-                a.lastTransactionAmount * 0.02
-              ).toLocaleString()}`,
+              Amount: formatCurrency(a.lastTransactionAmount),
+              "Gross Commission": formatCurrency(a.grossCommission),
             }))}
           />
         </CardBody>
