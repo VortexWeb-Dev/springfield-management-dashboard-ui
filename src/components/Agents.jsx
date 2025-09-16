@@ -16,16 +16,32 @@ import {
   Legend,
 } from "recharts";
 import { downloadCSV } from "../utils";
-import { AGENTS, Badge, Button, Card, CardBody, CardHeader, CHART_COLORS, Input, Select, TEAMS, TOKENS } from "./primitives";
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  CHART_COLORS,
+  Input,
+  Select,
+  LoadingSpinner,
+  TOKENS,
+} from "./primitives";
+import { useAgentsData } from "../hooks/useAgentsData";
 
 function Agents() {
+  const currentYear = new Date().getFullYear();
+  const { data, isLoading, isError, error } = useAgentsData(currentYear);
   const [query, setQuery] = useState("");
-  const [selectedTeam, setSelectedTeam] = useState("All");
+  const [selectedTeam, setSelectedTeam] = useState("All Teams");
+  const [selectedAgent, setSelectedAgent] = useState(null);
 
-  const filtered = useMemo(() => {
-    let list = AGENTS;
-    if (selectedTeam !== "All") {
-      list = list.filter((a) => a.team === selectedTeam);
+  const filteredAgents = useMemo(() => {
+    if (!data?.agents) return [];
+    let list = data.agents;
+    if (selectedTeam !== "All Teams") {
+      list = list.filter((a) => a.team.includes(selectedTeam));
     }
     return list.filter((a) =>
       [a.name, a.team, a.id]
@@ -33,9 +49,18 @@ function Agents() {
         .toLowerCase()
         .includes(query.toLowerCase())
     );
-  }, [query, selectedTeam]);
+  }, [query, selectedTeam, data]);
 
-  const [selected, setSelected] = useState(null);
+  if (isLoading)
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  if (isError)
+    return (
+      <div className="text-center p-8 text-red-500">Error: {error.message}</div>
+    );
 
   return (
     <div className="space-y-4">
@@ -51,8 +76,7 @@ function Agents() {
                 value={selectedTeam}
                 onChange={(e) => setSelectedTeam(e.target.value)}
               >
-                <option value="All">All Teams</option>
-                {TEAMS.map((team) => (
+                {data?.teams.map((team) => (
                   <option key={team.name} value={team.name}>
                     {team.name}
                   </option>
@@ -75,35 +99,29 @@ function Agents() {
                 variant="ghost"
                 onClick={() =>
                   downloadCSV(
-                    filtered,
+                    filteredAgents,
                     [
                       "id",
                       "name",
                       "team",
                       "leads",
                       "deals",
-                      "activities",
                       "calls",
-                      "closures",
-                      "tasks",
-                      "missed",
                       "conv",
                       "commissionAED",
-                      "commissionPct",
                     ],
                     "agents-report.csv"
                   )
                 }
               >
-                <Download size={16} className="inline mr-1" />
-                Export All
+                <Download size={16} className="inline mr-1" /> Export All
               </Button>
             </div>
           }
         />
         <CardBody>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((a) => (
+            {filteredAgents.map((a) => (
               <div
                 key={a.id}
                 className="p-4 rounded-2xl border hover:shadow-sm"
@@ -164,7 +182,7 @@ function Agents() {
                   </span>
                 </div>
                 <div className="mt-3">
-                  <Button variant="ghost" onClick={() => setSelected(a)}>
+                  <Button variant="ghost" onClick={() => setSelectedAgent(a)}>
                     Open Report Card
                   </Button>
                 </div>
@@ -173,12 +191,10 @@ function Agents() {
           </div>
         </CardBody>
       </Card>
-
       <AgentReportCardModal
-        agent={selected}
-        onClose={() => setSelected(null)}
+        agent={selectedAgent}
+        onClose={() => setSelectedAgent(null)}
       />
-
       <Card>
         <CardHeader
           title="Coaching Opportunities"
@@ -195,34 +211,10 @@ function Agents() {
     </div>
   );
 }
-
 export default Agents;
 
 function AgentReportCardModal({ agent, onClose }) {
   if (!agent) return null;
-
-  const monthlyTrendsData = [
-    { name: "Apr", leads: 40, deals: 24, calls: 50 },
-    { name: "May", leads: 30, deals: 13, calls: 60 },
-    { name: "Jun", leads: 50, deals: 43, calls: 45 },
-    { name: "Jul", leads: 48, deals: 29, calls: 48 },
-    { name: "Aug", leads: 55, deals: 35, calls: 52 },
-  ];
-
-  const leadSourcesData = [
-    { name: "Bayut", value: 400 },
-    { name: "Dubizzle", value: 300 },
-    { name: "Meta Ads", value: 300 },
-    { name: "Referral", value: 200 },
-    { name: "Website", value: 278 },
-  ];
-
-  const activityMixData = [
-    { name: "Calls", value: agent.calls },
-    { name: "Activities", value: agent.activities },
-    { name: "Tasks", value: agent.tasks },
-    { name: "Closures", value: agent.closures },
-  ];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -270,7 +262,6 @@ function AgentReportCardModal({ agent, onClose }) {
             </div>
           </div>
         </div>
-
         <div className="p-6 space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div
@@ -330,14 +321,13 @@ function AgentReportCardModal({ agent, onClose }) {
               </p>
             </div>
           </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader title="Monthly Trends" />
               <CardBody>
                 <div style={{ height: "250px" }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={monthlyTrendsData}>
+                    <LineChart data={agent.monthlyTrends}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
@@ -353,7 +343,6 @@ function AgentReportCardModal({ agent, onClose }) {
                         dataKey="deals"
                         stroke={TOKENS.redAccent}
                       />
-                      <Line type="monotone" dataKey="calls" stroke="#82ca9d" />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -366,17 +355,16 @@ function AgentReportCardModal({ agent, onClose }) {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={leadSourcesData}
+                        data={agent.leadSourcesData}
                         dataKey="value"
                         nameKey="name"
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
                         outerRadius={80}
-                        fill="#8884d8"
                         paddingAngle={5}
                       >
-                        {leadSourcesData.map((entry, index) => (
+                        {agent.leadSourcesData.map((_, index) => (
                           <Cell
                             key={`cell-${index}`}
                             fill={CHART_COLORS[index % CHART_COLORS.length]}
@@ -391,23 +379,18 @@ function AgentReportCardModal({ agent, onClose }) {
               </CardBody>
             </Card>
           </div>
-
           <Card>
             <CardHeader title="Activity Mix" />
             <CardBody>
               <div style={{ height: "250px" }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={activityMixData}>
+                  <BarChart data={agent.activityMixData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
                     <Tooltip />
-                    <Bar
-                      dataKey="value"
-                      fill={TOKENS.primary}
-                      radius={[6, 6, 0, 0]}
-                    >
-                      {activityMixData.map((entry, index) => (
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                      {agent.activityMixData.map((_, index) => (
                         <Cell
                           key={`cell-${index}`}
                           fill={CHART_COLORS[index % CHART_COLORS.length]}
@@ -419,60 +402,7 @@ function AgentReportCardModal({ agent, onClose }) {
               </div>
             </CardBody>
           </Card>
-
-          <Card>
-            <CardHeader title="Summary" />
-            <CardBody>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-xs" style={{ color: TOKENS.muted }}>
-                    Tasks
-                  </p>
-                  <p className="font-semibold">{agent.tasks}</p>
-                </div>
-                <div>
-                  <p className="text-xs" style={{ color: TOKENS.muted }}>
-                    Missed Leads
-                  </p>
-                  <p className="font-semibold">{agent.missed}</p>
-                </div>
-                <div>
-                  <p className="text-xs" style={{ color: TOKENS.muted }}>
-                    Clients
-                  </p>
-                  <p className="font-semibold">49</p>
-                </div>
-                <div>
-                  <p className="text-xs" style={{ color: TOKENS.muted }}>
-                    Commission Payout
-                  </p>
-                  <p className="font-semibold">
-                    AED {agent.commissionAED.toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs" style={{ color: TOKENS.muted }}>
-                    Commission %
-                  </p>
-                  <p className="font-semibold">{agent.commissionPct}%</p>
-                </div>
-                <div>
-                  <p className="text-xs" style={{ color: TOKENS.muted }}>
-                    Revenue
-                  </p>
-                  <p className="font-semibold">
-                    AED {agent.revenue.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-        </div>
-        <div
-          className="p-4 border-t text-xs text-center"
-          style={{ borderColor: TOKENS.border, color: TOKENS.muted }}
-        >
-          Prepared 28/08/2025 - VortexWeb
+          {/* Summary Card */}
         </div>
       </div>
     </div>

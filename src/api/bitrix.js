@@ -245,16 +245,20 @@ export const getDepartments = async () => {
  * @returns {Promise<Array>} An array of agent objects.
  */
 export const getAgents = async () => {
-    const users = await getAllUsers();
-    const salesDeptId = import.meta.env.VITE_SALES_DEPARTMENT_ID;
-    if (!salesDeptId) {
-        console.warn("VITE_SALES_DEPARTMENT_ID is not set in .env file. Returning all users.");
-        return users;
-    }
-    return users;
-    return users.filter(user => 
-        user.UF_DEPARTMENT && user.UF_DEPARTMENT.includes(parseInt(salesDeptId, 10))
+  const users = await getAllUsers();
+  const salesDeptId = import.meta.env.VITE_SALES_DEPARTMENT_ID;
+  if (!salesDeptId) {
+    console.warn(
+      "VITE_SALES_DEPARTMENT_ID is not set in .env file. Returning all users."
     );
+    // return users;
+  }
+  return users;
+  return users.filter(
+    (user) =>
+      user.UF_DEPARTMENT &&
+      user.UF_DEPARTMENT.includes(parseInt(salesDeptId, 10))
+  );
 };
 
 /**
@@ -263,31 +267,38 @@ export const getAgents = async () => {
  * @returns {Promise<Array>} A flat array of deal objects for that agent.
  */
 export const getDealsByAgent = async (agentId) => {
-    if (!agentId) return [];
-    
-    let allDeals = [];
-    let start = 0;
-    let hasMore = true;
-    
-    const wonStageId = import.meta.env.VITE_DEAL_STAGE_ID_WON;
-    const selectFields = ["CLOSEDATE", import.meta.env.VITE_FIELD_GROSS_COMMISSION];
-    const selectParams = selectFields.filter(Boolean).map((field, i) => `select[${i}]=${field}`).join('&');
+  if (!agentId) return [];
 
-    while (hasMore) {
-        const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}&filter[ASSIGNED_BY_ID]=${agentId}filter[STAGE_ID]=${wonStageId}&start=${start}`;
-        const response = await fetch(apiUrl);
-        if (!response.ok) throw new Error(`Failed to fetch deals for agent ${agentId}`);
-        const data = await response.json();
+  let allDeals = [];
+  let start = 0;
+  let hasMore = true;
 
-        allDeals = allDeals.concat(data.result || []);
-        
-        if (data.next) {
-            start = data.next;
-        } else {
-            hasMore = false;
-        }
+  const wonStageId = import.meta.env.VITE_DEAL_STAGE_ID_WON;
+  const selectFields = [
+    "CLOSEDATE",
+    import.meta.env.VITE_FIELD_GROSS_COMMISSION,
+  ];
+  const selectParams = selectFields
+    .filter(Boolean)
+    .map((field, i) => `select[${i}]=${field}`)
+    .join("&");
+
+  while (hasMore) {
+    const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}&filter[ASSIGNED_BY_ID]=${agentId}filter[STAGE_ID]=${wonStageId}&start=${start}`;
+    const response = await fetch(apiUrl);
+    if (!response.ok)
+      throw new Error(`Failed to fetch deals for agent ${agentId}`);
+    const data = await response.json();
+
+    allDeals = allDeals.concat(data.result || []);
+
+    if (data.next) {
+      start = data.next;
+    } else {
+      hasMore = false;
     }
-    return allDeals;
+  }
+  return allDeals;
 };
 
 /**
@@ -297,27 +308,74 @@ export const getDealsByAgent = async (agentId) => {
  * @returns {Promise<Array>} A flat array of all "won" deal objects for the year.
  */
 export const getAllWonDealsForYear = async (year) => {
-    let allDeals = [];
-    let start = 0;
-    let hasMore = true;
+  let allDeals = [];
+  let start = 0;
+  let hasMore = true;
 
-    const wonStageId = import.meta.env.VITE_DEAL_STAGE_ID_WON;
-    const selectFields = ["ASSIGNED_BY_ID", "CLOSEDATE", import.meta.env.VITE_FIELD_GROSS_COMMISSION];
-    const selectParams = selectFields.filter(Boolean).map((field, i) => `select[${i}]=${field}`).join('&');
+  const wonStageId = import.meta.env.VITE_DEAL_STAGE_ID_WON;
+  const selectFields = [
+    "ASSIGNED_BY_ID",
+    "CLOSEDATE",
+    import.meta.env.VITE_FIELD_GROSS_COMMISSION,
+  ];
+  const selectParams = selectFields
+    .filter(Boolean)
+    .map((field, i) => `select[${i}]=${field}`)
+    .join("&");
 
-    while (hasMore) {
-        const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}&filter[STAGE_ID]=${wonStageId}&filter[>=CLOSEDATE]=${year}-01-01T00:00:00&filter[<=CLOSEDATE]=${year}-12-31T23:59:59&start=${start}`;
-        const response = await fetch(apiUrl);
-        if (!response.ok) throw new Error(`Failed to fetch won deals for year ${year}`);
-        const data = await response.json();
+  while (hasMore) {
+    const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}&filter[STAGE_ID]=${wonStageId}&filter[>=CLOSEDATE]=${year}-01-01T00:00:00&filter[<=CLOSEDATE]=${year}-12-31T23:59:59&start=${start}`;
+    const response = await fetch(apiUrl);
+    if (!response.ok)
+      throw new Error(`Failed to fetch won deals for year ${year}`);
+    const data = await response.json();
 
-        allDeals = allDeals.concat(data.result || []);
-        
-        if (data.next) {
-            start = data.next;
-        } else {
-            hasMore = false;
-        }
+    allDeals = allDeals.concat(data.result || []);
+
+    if (data.next) {
+      start = data.next;
+    } else {
+      hasMore = false;
     }
-    return allDeals;
+  }
+  return allDeals;
+};
+
+/**
+ * Fetches all leads for a given year, handling pagination.
+ * @param {string | number} year - The year to fetch leads for.
+ * @returns {Promise<Array>} A flat array of all lead objects for the year.
+ */
+export const getAllLeadsForYear = async (year) => {
+  let allLeads = [];
+  let start = 0;
+  let hasMore = true;
+
+  const selectFields = [
+    "ID",
+    "ASSIGNED_BY_ID",
+    "DATE_CREATE",
+    "SOURCE_ID",
+    "STATUS_ID",
+  ];
+  const selectParams = selectFields
+    .filter(Boolean)
+    .map((field, i) => `select[${i}]=${field}`)
+    .join("&");
+
+  while (hasMore) {
+    const apiUrl = `${BITRIX_URL}/crm.lead.list?${selectParams}&filter[>=DATE_CREATE]=${year}-01-01T00:00:00&filter[<=DATE_CREATE]=${year}-12-31T23:59:59&start=${start}`;
+    const response = await fetch(apiUrl);
+    if (!response.ok) throw new Error(`Failed to fetch leads for year ${year}`);
+    const data = await response.json();
+
+    allLeads = allLeads.concat(data.result || []);
+
+    if (data.next) {
+      start = data.next;
+    } else {
+      hasMore = false;
+    }
+  }
+  return allLeads;
 };
