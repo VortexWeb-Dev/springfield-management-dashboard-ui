@@ -239,3 +239,54 @@ export const getDepartments = async () => {
   const data = await response.json();
   return data.result || [];
 };
+
+/**
+ * Fetches all users who are part of the designated Sales Department.
+ * @returns {Promise<Array>} An array of agent objects.
+ */
+export const getAgents = async () => {
+    const users = await getAllUsers();
+    const salesDeptId = import.meta.env.VITE_SALES_DEPARTMENT_ID;
+    if (!salesDeptId) {
+        console.warn("VITE_SALES_DEPARTMENT_ID is not set in .env file. Returning all users.");
+        return users;
+    }
+    return users;
+    return users.filter(user => 
+        user.UF_DEPARTMENT && user.UF_DEPARTMENT.includes(parseInt(salesDeptId, 10))
+    );
+};
+
+/**
+ * Fetches all "won" deals for a specific agent.
+ * @param {string} agentId - The ID of the agent.
+ * @returns {Promise<Array>} A flat array of deal objects for that agent.
+ */
+export const getDealsByAgent = async (agentId) => {
+    if (!agentId) return [];
+    
+    let allDeals = [];
+    let start = 0;
+    let hasMore = true;
+    
+    const wonStageId = import.meta.env.VITE_DEAL_STAGE_ID_WON;
+    const selectFields = ["CLOSEDATE", import.meta.env.VITE_FIELD_GROSS_COMMISSION];
+    const selectParams = selectFields.filter(Boolean).map((field, i) => `select[${i}]=${field}`).join('&');
+
+    while (hasMore) {
+        const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}&filter[ASSIGNED_BY_ID]=${agentId}filter[STAGE_ID]=${wonStageId}&start=${start}`;
+        const response = await fetch(apiUrl);
+        if (!response.ok) throw new Error(`Failed to fetch deals for agent ${agentId}`);
+        const data = await response.json();
+
+        allDeals = allDeals.concat(data.result || []);
+        
+        if (data.next) {
+            start = data.next;
+        } else {
+            hasMore = false;
+        }
+    }
+    return allDeals;
+};
+
