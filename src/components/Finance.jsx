@@ -9,34 +9,61 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { AGENTS, Button, Card, CardBody, CardHeader, TOKENS } from "./primitives";
+import {
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  LoadingSpinner,
+  TOKENS,
+} from "./primitives";
+import { useFinanceData } from "../hooks/useFinanceData";
+
+const formatCurrency = (value) =>
+  `AED ${new Intl.NumberFormat("en-AE").format(value || 0)}`;
 
 function Finance() {
-  const payouts = [
-    { month: "May", payout: 410000 },
-    { month: "Jun", payout: 450000 },
-    { month: "Jul", payout: 470000 },
-    { month: "Aug", payout: 530000 },
-  ];
+  const { data, isLoading, isError, error } = useFinanceData();
+
+  if (isLoading)
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  if (isError)
+    return (
+      <div className="text-center p-8 text-red-500">Error: {error.message}</div>
+    );
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
       <Card className="xl:col-span-2">
         <CardHeader
-          title="Commission & Spend"
+          title="Commission Payout Trend (Last 6 Months)"
           icon={<Banknote size={18} style={{ color: TOKENS.primary }} />}
         />
         <CardBody>
           <div style={{ width: "100%", height: 280 }}>
             <ResponsiveContainer>
-              <LineChart data={payouts}>
+              <LineChart data={data?.commissionSpendData}>
                 <CartesianGrid strokeDasharray="3 3" stroke={TOKENS.border} />
                 <XAxis dataKey="month" stroke={TOKENS.muted} />
-                <YAxis stroke={TOKENS.muted} />
-                <Tooltip />
+                <YAxis
+                  stroke={TOKENS.muted}
+                  tickFormatter={(value) =>
+                    new Intl.NumberFormat("en-US", {
+                      notation: "compact",
+                      compactDisplay: "short",
+                    }).format(value)
+                  }
+                />
+                <Tooltip formatter={(value) => formatCurrency(value)} />
                 <Legend />
                 <Line
                   type="monotone"
                   dataKey="payout"
+                  name="Gross Commission"
                   stroke={TOKENS.primary}
                   strokeWidth={3}
                 />
@@ -68,7 +95,7 @@ function Finance() {
 
       <Card className="xl:col-span-3">
         <CardHeader
-          title="Upcoming Payouts"
+          title="Upcoming Payouts (Current Month)"
           icon={<CalendarClock size={18} style={{ color: TOKENS.primary }} />}
         />
         <CardBody>
@@ -84,16 +111,16 @@ function Finance() {
                 </tr>
               </thead>
               <tbody>
-                {AGENTS.map((a) => (
+                {data?.upcomingPayoutsData.map((a) => (
                   <tr
                     key={a.id}
                     className="border-t"
                     style={{ borderColor: TOKENS.border }}
                   >
-                    <td className="py-2 pr-4">{a.name}</td>
+                    <td className="py-2 pr-4 font-medium">{a.name}</td>
                     <td className="py-2 pr-4">{a.team}</td>
                     <td className="py-2 pr-4">
-                      AED {a.commissionAED.toLocaleString()}
+                      {formatCurrency(a.commissionAED)}
                     </td>
                     <td className="py-2 pr-4">{a.commissionPct}%</td>
                     <td className="py-2 pr-4">

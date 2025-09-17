@@ -293,6 +293,7 @@ export const getAgents = async () => {
     );
     // return users;
   }
+  // TODO: get users who are agents
   return users;
   return users.filter(
     (user) =>
@@ -436,7 +437,6 @@ export const getAllLeadsForYear = async (year) => {
 
     const apiUrl = `${baseUrl}?${params.toString()}`;
 
-    console.log("Fetching leads from URL:", apiUrl);
     const response = await fetch(apiUrl);
 
     if (!response.ok) {
@@ -452,12 +452,6 @@ export const getAllLeadsForYear = async (year) => {
       allLeads = allLeads.concat(data.result);
     }
 
-    console.log(
-      `Fetched ${data.result?.length || 0} leads, total so far: ${
-        allLeads.length
-      }`
-    );
-
     if (data.next) {
       start = data.next;
     } else {
@@ -466,4 +460,61 @@ export const getAllLeadsForYear = async (year) => {
   }
 
   return allLeads;
+};
+
+/**
+ * Fetches all "won" deals from the Bitrix24 API within a specific date range,
+ * handling pagination automatically.
+ * @param {string} startDate The start date in 'YYYY-MM-DD' format.
+ * @param {string} endDate The end date in 'YYYY-MM-DD' format.
+ * @returns {Promise<Array>} A promise that resolves to an array of deal objects.
+ */
+export const getAllWonDealsForDateRange = async (startDate, endDate) => {
+  const wonStageId = import.meta.env.VITE_DEAL_STAGE_ID_WON;
+  const selectFields = [
+    "ASSIGNED_BY_ID",
+    "CLOSEDATE",
+    import.meta.env.VITE_FIELD_NET_COMMISSION,
+    import.meta.env.VITE_FIELD_GROSS_COMMISSION
+  ].filter(Boolean); // Filter out any undefined env variables
+
+  const baseUrl = `${BITRIX_URL}/crm.deal.list`;
+
+  let allResults = [];
+  let start = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    // Build the full query string for each paginated request
+    const params = new URLSearchParams();
+
+    selectFields.forEach((field, index) => {
+      params.append(`select[${index}]`, field);
+    });
+
+    params.append("filter[STAGE_ID]", wonStageId);
+    params.append("filter[>=CLOSEDATE]", startDate);
+    params.append("filter[<=CLOSEDATE]", endDate);
+
+    params.append("start", start);
+
+    const url = `${baseUrl}?${params.toString()}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(
+        `Failed to fetch won deals. Status: ${response.status}. Response: ${errorData}`
+      );
+    }
+
+    const data = await response.json();
+
+    allResults = allResults.concat(data.result || []);
+
+    hasMore = !!data.next;
+    start = data.next || 0;
+  }
+
+  return allResults;
 };
