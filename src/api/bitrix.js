@@ -475,7 +475,7 @@ export const getAllWonDealsForDateRange = async (startDate, endDate) => {
     "ASSIGNED_BY_ID",
     "CLOSEDATE",
     import.meta.env.VITE_FIELD_NET_COMMISSION,
-    import.meta.env.VITE_FIELD_GROSS_COMMISSION
+    import.meta.env.VITE_FIELD_GROSS_COMMISSION,
   ].filter(Boolean); // Filter out any undefined env variables
 
   const baseUrl = `${BITRIX_URL}/crm.deal.list`;
@@ -505,6 +505,64 @@ export const getAllWonDealsForDateRange = async (startDate, endDate) => {
       const errorData = await response.text();
       throw new Error(
         `Failed to fetch won deals. Status: ${response.status}. Response: ${errorData}`
+      );
+    }
+
+    const data = await response.json();
+
+    allResults = allResults.concat(data.result || []);
+
+    hasMore = !!data.next;
+    start = data.next || 0;
+  }
+
+  return allResults;
+};
+
+/**
+ * Fetches all leads from the Bitrix24 API within a specific date range,
+ * handling pagination automatically.
+ * @param {string} startDate The start date in 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM:SS' format.
+ * @param {string} endDate The end date in 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM:SS' format.
+ * @returns {Promise<Array>} A promise that resolves to an array of lead objects.
+ */
+export const getLeadsForDateRange = async (startDate, endDate) => {
+  const selectFields = [
+    "ID",
+    "TITLE",
+    "ASSIGNED_BY_ID",
+    "DATE_CREATE",
+    "SOURCE_ID",
+    "STATUS_ID",
+    "OPPORTUNITY",
+    "CURRENCY_ID",
+  ];
+  const baseUrl = `${BITRIX_URL}/crm.lead.list`;
+
+  let allResults = [];
+  let start = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    // Build the full query string for each paginated request
+    const params = new URLSearchParams();
+
+    selectFields.forEach((field, index) => {
+      params.append(`select[${index}]`, field);
+    });
+
+    params.append("filter[>=DATE_CREATE]", startDate);
+    params.append("filter[<=DATE_CREATE]", endDate);
+
+    params.append("start", start);
+
+    const url = `${baseUrl}?${params.toString()}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(
+        `Failed to fetch leads. Status: ${response.status}. Response: ${errorData}`
       );
     }
 

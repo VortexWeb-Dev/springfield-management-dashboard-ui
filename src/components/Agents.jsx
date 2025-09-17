@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Users, Download, Search, BellRing, X } from "lucide-react";
+import { Users, Download, BellRing, X } from "lucide-react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -83,11 +83,6 @@ function Agents() {
                 ))}
               </Select>
               <div className="relative">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-2.5"
-                  style={{ color: TOKENS.muted }}
-                />
                 <Input
                   className="pl-8 w-64"
                   placeholder="Search agents…"
