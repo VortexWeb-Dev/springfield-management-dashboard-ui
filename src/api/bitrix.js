@@ -358,24 +358,62 @@ export const getAllLeadsForYear = async (year) => {
     "SOURCE_ID",
     "STATUS_ID",
   ];
-  const selectParams = selectFields
-    .filter(Boolean)
-    .map((field, i) => `select[${i}]=${field}`)
-    .join("&");
+
+  // The base URL without any query parameters
+  const baseUrl = `${BITRIX_URL}/crm.lead.list`;
 
   while (hasMore) {
-    const apiUrl = `${BITRIX_URL}/crm.lead.list?${selectParams}&filter[>=DATE_CREATE]=${year}-01-01T00:00:00&filter[<=DATE_CREATE]=${year}-12-31T23:59:59&start=${start}`;
+    // Use URLSearchParams to build the query string correctly
+    const params = new URLSearchParams();
+
+    // 1. Add select fields
+    selectFields.forEach((field, index) => {
+      params.append(`select[${index}]`, field);
+    });
+
+    // 2. Add filter fields (this will be correctly encoded)
+    // TODO: Adjust the date range as needed
+    // params.append('filter[>=DATE_CREATE]', `${year}-01-01T00:00:00`);
+    // params.append('filter[<DATE_CREATE]', `${Number(year) + 1}-01-01T00:00:00`);
+    params.append("filter[>=DATE_CREATE]", `${year}-09-12T00:00:00`);
+    params.append("filter[<=DATE_CREATE]", `${year}-12-31T23:59:59`);
+
+    // 3. Add the pagination start parameter
+    params.append("start", start);
+
+    // 4. Construct the final, properly encoded URL
+    const apiUrl = `${baseUrl}?${params.toString()}`;
+
+    console.log("Fetching leads from URL:", apiUrl);
     const response = await fetch(apiUrl);
-    if (!response.ok) throw new Error(`Failed to fetch leads for year ${year}`);
+
+    if (!response.ok) {
+      // It's helpful to log the error response from the server
+      const errorData = await response.text();
+      throw new Error(
+        `Failed to fetch leads for year ${year}. Status: ${response.status}. Response: ${errorData}`
+      );
+    }
+
     const data = await response.json();
 
-    allLeads = allLeads.concat(data.result || []);
+    if (data.result && data.result.length > 0) {
+      allLeads = allLeads.concat(data.result);
+    }
 
+    console.log(
+      `Fetched ${data.result?.length || 0} leads, total so far: ${
+        allLeads.length
+      }`
+    );
+
+    // Check for the 'next' property to continue pagination
     if (data.next) {
       start = data.next;
     } else {
       hasMore = false;
     }
   }
+
   return allLeads;
 };
