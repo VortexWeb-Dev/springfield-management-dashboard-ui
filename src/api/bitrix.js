@@ -83,9 +83,8 @@ export const getDealsByYear = async (year) => {
   let start = 0;
   let hasMore = true;
 
-  // Define the fields we want to select in the API call
   const selectFields = [
-    "*", // Selects all standard fields
+    "*",
     FIELD_DEVELOPER,
     FIELD_GROSS_COMMISSION,
     FIELD_NET_COMMISSION,
@@ -94,24 +93,36 @@ export const getDealsByYear = async (year) => {
     FIELD_AMOUNT_RECEIVABLE,
   ];
 
-  const selectParams = selectFields
-    .map((field, i) => `select[${i}]=${field}`)
-    .join("&");
+  const baseUrl = `${BITRIX_URL}/crm.deal.list`;
 
   while (hasMore) {
-    // Conditionally create the date filter string
-    const dateFilter = year
-      ? `&filter[>=DATE_CREATE]=${year}-01-01T00:00:00&filter[<DATE_CREATE]=${
-          Number(year) + 1
-        }-01-01T00:00:00`
-      : "";
+    // Use URLSearchParams to correctly build the query string each time
+    const params = new URLSearchParams();
 
-    // Construct the API URL with pagination and the conditional date filter
-    const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}${dateFilter}&start=${start}`;
+    selectFields.forEach((field, index) => {
+      params.append(`select[${index}]`, field);
+    });
+
+    if (year) {
+      params.append("filter[>=DATE_CREATE]", `${year}-01-01T00:00:00`);
+      params.append(
+        "filter[<DATE_CREATE]",
+        `${Number(year) + 1}-01-01T00:00:00`
+      );
+    }
+
+    params.append("start", start);
+
+    const apiUrl = `${baseUrl}?${params.toString()}`;
 
     const response = await fetch(apiUrl);
     if (!response.ok) {
-      throw new Error(`Failed to fetch deals for year ${year || "all years"}`);
+      const errorData = await response.text();
+      throw new Error(
+        `Failed to fetch deals for year ${year || "all years"}. Status: ${
+          response.status
+        }. Response: ${errorData}`
+      );
     }
     const data = await response.json();
 
@@ -176,29 +187,58 @@ export const getLeadsByYear = async (year) => {
   let allLeads = [];
   let start = 0;
   let hasMore = true;
+
   const selectFields = [
     "*",
     import.meta.env.VITE_FIELD_LEAD_COLLECTION_SOURCE,
     import.meta.env.VITE_FIELD_LEAD_MODE_OF_ENQUIRY,
     import.meta.env.VITE_FIELD_LEAD_PROPERTY_REFERENCE,
     import.meta.env.VITE_FIELD_LEAD_PROPERTY_LOCATION,
-  ];
-  const selectParams = selectFields
-    .map((field, i) => `select[${i}]=${field}`)
-    .join("&");
+  ].filter(Boolean); // Use .filter(Boolean) to remove any undefined/null fields
+
+  const baseUrl = `${BITRIX_URL}/crm.lead.list`;
 
   while (hasMore) {
-    // const apiUrl = `${BITRIX_URL}/crm.lead.list?${selectParams}&filter[>=DATE_CREATE]=${year}-01-01T00:00:00&filter[<DATE_CREATE]=${Number(year) + 1}-01-01T00:00:00&start=${start}`;
-    const apiUrl = `${BITRIX_URL}/crm.lead.list?${selectParams}&filter[>DATE_CREATE]=2025-09-09&filter[<DATE_CREATE]=2025-12-31&start=${start}`;
+    // Use URLSearchParams to build the query correctly every time
+    const params = new URLSearchParams();
+
+    selectFields.forEach((field, index) => {
+      params.append(`select[${index}]`, field);
+    });
+
+    if (year) {
+      // TODO: Adjust the date range as needed
+      // params.append('filter[>=DATE_CREATE]', `${year}-01-01T00:00:00`);
+      // params.append('filter[<DATE_CREATE]', `${Number(year) + 1}-01-01T00:00:00`);
+      params.append("filter[>=DATE_CREATE]", `${year}-09-12T00:00:00`);
+      params.append(
+        "filter[<DATE_CREATE]",
+        `${Number(year) + 1}-01-01T00:00:00`
+      );
+    }
+
+    params.append("start", start);
+
+    const apiUrl = `${baseUrl}?${params.toString()}`;
+
     const response = await fetch(apiUrl);
-    if (!response.ok) throw new Error(`Failed to fetch leads for year ${year}`);
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(
+        `Failed to fetch leads for year ${year}. Status: ${response.status}. Response: ${errorData}`
+      );
+    }
+
     const data = await response.json();
+
     if (data.result && data.result.length > 0) {
       allLeads = [...allLeads, ...data.result];
     }
+
     hasMore = !!data.next;
     start = data.next || 0;
   }
+
   return allLeads;
 };
 
@@ -317,17 +357,34 @@ export const getAllWonDealsForYear = async (year) => {
     "ASSIGNED_BY_ID",
     "CLOSEDATE",
     import.meta.env.VITE_FIELD_GROSS_COMMISSION,
-  ];
-  const selectParams = selectFields
-    .filter(Boolean)
-    .map((field, i) => `select[${i}]=${field}`)
-    .join("&");
+  ].filter(Boolean);
+
+  const baseUrl = `${BITRIX_URL}/crm.deal.list`;
 
   while (hasMore) {
-    const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}&filter[STAGE_ID]=${wonStageId}&filter[>=CLOSEDATE]=${year}-01-01T00:00:00&filter[<=CLOSEDATE]=${year}-12-31T23:59:59&start=${start}`;
+    // Use URLSearchParams to build the query string correctly
+    const params = new URLSearchParams();
+
+    selectFields.forEach((field, index) => {
+      params.append(`select[${index}]`, field);
+    });
+
+    params.append("filter[STAGE_ID]", wonStageId);
+    params.append("filter[>=CLOSEDATE]", `${year}-01-01T00:00:00`);
+    params.append("filter[<=CLOSEDATE]", `${year}-12-31T23:59:59`);
+
+    params.append("start", start);
+
+    const apiUrl = `${baseUrl}?${params.toString()}`;
+
     const response = await fetch(apiUrl);
-    if (!response.ok)
-      throw new Error(`Failed to fetch won deals for year ${year}`);
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(
+        `Failed to fetch won deals for year ${year}. Status: ${response.status}. Response: ${errorData}`
+      );
+    }
+
     const data = await response.json();
 
     allDeals = allDeals.concat(data.result || []);
@@ -359,36 +416,30 @@ export const getAllLeadsForYear = async (year) => {
     "STATUS_ID",
   ];
 
-  // The base URL without any query parameters
   const baseUrl = `${BITRIX_URL}/crm.lead.list`;
 
   while (hasMore) {
     // Use URLSearchParams to build the query string correctly
     const params = new URLSearchParams();
 
-    // 1. Add select fields
     selectFields.forEach((field, index) => {
       params.append(`select[${index}]`, field);
     });
 
-    // 2. Add filter fields (this will be correctly encoded)
     // TODO: Adjust the date range as needed
     // params.append('filter[>=DATE_CREATE]', `${year}-01-01T00:00:00`);
     // params.append('filter[<DATE_CREATE]', `${Number(year) + 1}-01-01T00:00:00`);
     params.append("filter[>=DATE_CREATE]", `${year}-09-12T00:00:00`);
     params.append("filter[<=DATE_CREATE]", `${year}-12-31T23:59:59`);
 
-    // 3. Add the pagination start parameter
     params.append("start", start);
 
-    // 4. Construct the final, properly encoded URL
     const apiUrl = `${baseUrl}?${params.toString()}`;
 
     console.log("Fetching leads from URL:", apiUrl);
     const response = await fetch(apiUrl);
 
     if (!response.ok) {
-      // It's helpful to log the error response from the server
       const errorData = await response.text();
       throw new Error(
         `Failed to fetch leads for year ${year}. Status: ${response.status}. Response: ${errorData}`
@@ -407,7 +458,6 @@ export const getAllLeadsForYear = async (year) => {
       }`
     );
 
-    // Check for the 'next' property to continue pagination
     if (data.next) {
       start = data.next;
     } else {
