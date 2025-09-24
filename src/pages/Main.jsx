@@ -66,7 +66,7 @@ const TABS = [
   { key: "finance", label: "Finance", icon: <Banknote size={16} /> },
   { key: "compliance", label: "Compliance", icon: <ShieldCheck size={16} /> },
   { key: "reports", label: "Reports", icon: <FileBarChart size={16} /> },
-  { key: "settings", label: "Settings", icon: <Settings size={16} /> },
+  // { key: "settings", label: "Settings", icon: <Settings size={16} /> },
 ];
 
 export default function RealEstateAdminApp() {
@@ -100,8 +100,8 @@ export default function RealEstateAdminApp() {
         return <Compliance />;
       case "reports":
         return <Reports />;
-      case "settings":
-        return <SettingsPage />;
+      // case "settings":
+      //   return <SettingsPage />;
       default:
         return <ManagementPage />;
     }
