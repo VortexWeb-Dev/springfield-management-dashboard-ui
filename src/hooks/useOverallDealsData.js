@@ -14,7 +14,14 @@ const FIELD_IDS = {
   propertyType: import.meta.env.VITE_FIELD_PROPERTY_TYPE,
   amountReceivable: import.meta.env.VITE_FIELD_AMOUNT_RECEIVABLE,
 };
-const DEAL_STAGE_WON = import.meta.env.VITE_DEAL_STAGE_ID_WON;
+
+const DEAL_STAGES_WON = [
+  import.meta.env.VITE_DEAL_STAGE_ID_WON,
+  import.meta.env.VITE_DEAL_STAGE_ID_C2WON,
+  import.meta.env.VITE_DEAL_STAGE_ID_C4WON,
+  import.meta.env.VITE_DEAL_STAGE_ID_C5WON,
+].filter(Boolean);
+
 const MONTH_NAMES = [
   "January",
   "February",
@@ -39,9 +46,10 @@ export const useOverallDealsData = () => {
         getDealFields(),
       ]);
 
-      const wonDeals = allDeals.filter(
-        (deal) => deal.STAGE_ID === DEAL_STAGE_WON
+      const wonDeals = allDeals.filter((deal) =>
+        DEAL_STAGES_WON.includes(deal.STAGE_ID)
       );
+      
       const propertyTypeMap = new Map(
         dealFields[FIELD_IDS.propertyType]?.items.map((item) => [
           item.ID,

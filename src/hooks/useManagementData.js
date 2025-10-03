@@ -16,7 +16,13 @@ const FIELD_IDS = {
   propertyType: import.meta.env.VITE_FIELD_PROPERTY_TYPE,
   amountReceivable: import.meta.env.VITE_FIELD_AMOUNT_RECEIVABLE,
 };
-const DEAL_STAGE_WON = import.meta.env.VITE_DEAL_STAGE_ID_WON;
+
+const DEAL_STAGES_WON = [
+  import.meta.env.VITE_DEAL_STAGE_ID_WON,
+  import.meta.env.VITE_DEAL_STAGE_ID_C2WON,
+  import.meta.env.VITE_DEAL_STAGE_ID_C4WON,
+  import.meta.env.VITE_DEAL_STAGE_ID_C5WON,
+].filter(Boolean);
 
 /**
  * Custom hook to fetch and process all data for the Management Dashboard.
@@ -33,9 +39,9 @@ export const useManagementData = (year) => {
         getStatusList(),
       ]);
 
-      // 2. Filter for 'won' deals to perform financial calculations on them
-      const wonDeals = allDeals.filter(
-        (deal) => deal.STAGE_ID === DEAL_STAGE_WON
+      // 2. **CHANGE**: Filter for 'won' deals by checking against the array of WON stages.
+      const wonDeals = allDeals.filter((deal) =>
+        DEAL_STAGES_WON.includes(deal.STAGE_ID)
       );
 
       // 3. Create helper maps

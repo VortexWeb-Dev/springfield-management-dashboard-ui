@@ -314,18 +314,23 @@ export const getDealsByAgent = async (agentId) => {
   let start = 0;
   let hasMore = true;
 
-  const wonStageId = import.meta.env.VITE_DEAL_STAGE_ID_WON;
   const selectFields = [
     "CLOSEDATE",
-    import.meta.env.VITE_FIELD_GROSS_COMMISSION,
-  ];
-  const selectParams = selectFields
-    .filter(Boolean)
-    .map((field, i) => `select[${i}]=${field}`)
-    .join("&");
+    import.meta.env.VITE_FIELD_TOTAL_COMMISSION,
+  ].filter(Boolean);
+
+  const baseUrl = `${BITRIX_URL}/crm.deal.list`;
 
   while (hasMore) {
-    const apiUrl = `${BITRIX_URL}/crm.deal.list?${selectParams}&filter[ASSIGNED_BY_ID]=${agentId}filter[STAGE_ID]=${wonStageId}&start=${start}`;
+    const params = new URLSearchParams();
+    selectFields.forEach((field, i) => params.append(`select[${i}]`, field));
+    params.append("filter[ASSIGNED_BY_ID]", agentId);
+
+    WON_STAGE_IDS.forEach((id) => params.append("filter[STAGE_ID][]", id));
+
+    params.append("start", start);
+
+    const apiUrl = `${baseUrl}?${params.toString()}`;
     const response = await fetch(apiUrl);
     if (!response.ok)
       throw new Error(`Failed to fetch deals for agent ${agentId}`);
@@ -353,31 +358,28 @@ export const getAllWonDealsForYear = async (year) => {
   let start = 0;
   let hasMore = true;
 
-  const wonStageId = import.meta.env.VITE_DEAL_STAGE_ID_WON;
   const selectFields = [
     "ASSIGNED_BY_ID",
     "CLOSEDATE",
-    import.meta.env.VITE_FIELD_GROSS_COMMISSION,
+    import.meta.env.VITE_FIELD_TOTAL_COMMISSION,
   ].filter(Boolean);
 
   const baseUrl = `${BITRIX_URL}/crm.deal.list`;
 
   while (hasMore) {
-    // Use URLSearchParams to build the query string correctly
     const params = new URLSearchParams();
 
     selectFields.forEach((field, index) => {
       params.append(`select[${index}]`, field);
     });
 
-    params.append("filter[STAGE_ID]", wonStageId);
+    WON_STAGE_IDS.forEach((id) => params.append("filter[STAGE_ID][]", id));
+
     params.append("filter[>=CLOSEDATE]", `${year}-01-01T00:00:00`);
     params.append("filter[<=CLOSEDATE]", `${year}-12-31T23:59:59`);
-
     params.append("start", start);
 
     const apiUrl = `${baseUrl}?${params.toString()}`;
-
     const response = await fetch(apiUrl);
     if (!response.ok) {
       const errorData = await response.text();
@@ -387,7 +389,6 @@ export const getAllWonDealsForYear = async (year) => {
     }
 
     const data = await response.json();
-
     allDeals = allDeals.concat(data.result || []);
 
     if (data.next) {
@@ -470,12 +471,11 @@ export const getAllLeadsForYear = async (year) => {
  * @returns {Promise<Array>} A promise that resolves to an array of deal objects.
  */
 export const getAllWonDealsForDateRange = async (startDate, endDate) => {
-  const wonStageId = import.meta.env.VITE_DEAL_STAGE_ID_WON;
   const selectFields = [
     "ASSIGNED_BY_ID",
     "CLOSEDATE",
     import.meta.env.VITE_FIELD_NET_COMMISSION,
-    import.meta.env.VITE_FIELD_GROSS_COMMISSION,
+    import.meta.env.VITE_FIELD_TOTAL_COMMISSION,
   ].filter(Boolean); // Filter out any undefined env variables
 
   const baseUrl = `${BITRIX_URL}/crm.deal.list`;
@@ -485,21 +485,19 @@ export const getAllWonDealsForDateRange = async (startDate, endDate) => {
   let hasMore = true;
 
   while (hasMore) {
-    // Build the full query string for each paginated request
     const params = new URLSearchParams();
 
     selectFields.forEach((field, index) => {
       params.append(`select[${index}]`, field);
     });
 
-    params.append("filter[STAGE_ID]", wonStageId);
+    WON_STAGE_IDS.forEach((id) => params.append("filter[STAGE_ID][]", id));
+
     params.append("filter[>=CLOSEDATE]", startDate);
     params.append("filter[<=CLOSEDATE]", endDate);
-
     params.append("start", start);
 
     const url = `${baseUrl}?${params.toString()}`;
-
     const response = await fetch(url);
     if (!response.ok) {
       const errorData = await response.text();
@@ -509,9 +507,7 @@ export const getAllWonDealsForDateRange = async (startDate, endDate) => {
     }
 
     const data = await response.json();
-
     allResults = allResults.concat(data.result || []);
-
     hasMore = !!data.next;
     start = data.next || 0;
   }
