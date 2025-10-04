@@ -6,6 +6,13 @@ const FIELD_NET_COMMISSION = import.meta.env.VITE_FIELD_NET_COMMISSION;
 const FIELD_PAYMENT_RECEIVED = import.meta.env.VITE_FIELD_PAYMENT_RECEIVED;
 const FIELD_PROPERTY_TYPE = import.meta.env.VITE_FIELD_PROPERTY_TYPE;
 const FIELD_AMOUNT_RECEIVABLE = import.meta.env.VITE_FIELD_AMOUNT_RECEIVABLE;
+// A centralized array of all your "WON" stage IDs from .env
+const WON_STAGE_IDS = [
+  import.meta.env.VITE_DEAL_STAGE_ID_WON,
+  import.meta.env.VITE_DEAL_STAGE_ID_C2WON,
+  import.meta.env.VITE_DEAL_STAGE_ID_C4WON,
+  import.meta.env.VITE_DEAL_STAGE_ID_C5WON,
+].filter(Boolean);
 
 /**
  * Fetches the definitions for all deal fields.
